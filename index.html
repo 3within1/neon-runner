@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>NEON RUNNER</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Share+Tech+Mono&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="src/style.css" />
+  </head>
+  <body>
+    <div id="app">
+      <div id="frame">
+        <header id="hud">
+          <div class="brand">NEON RUNNER</div>
+          <div class="stats">
+            <span id="score">DATA <b>00</b></span>
+            <span id="lives">LIVES <b>03</b></span>
+          </div>
+        </header>
+        <canvas id="game" width="960" height="540"></canvas>
+        <div id="scanlines" aria-hidden="true"></div>
+        <div id="vignette" aria-hidden="true"></div>
+        <div id="overlay" class="visible">
+          <div class="panel">
+            <p class="eyebrow">SECTOR 2084</p>
+            <h1>NEON RUNNER</h1>
+            <p class="tagline">Sprint the grid. Stomp the drones. Jack the exit.</p>
+            <button id="start-btn" type="button">JACK IN</button>
+            <p class="controls">
+              ← → / A D move &nbsp;·&nbsp; SPACE / W / ↑ jump
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+    <script type="module" src="src/main.js"></script>
+  </body>
+</html>
