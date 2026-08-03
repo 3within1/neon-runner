@@ -16,6 +16,7 @@ import { W, H } from "./dom.js";
 import { input } from "./input.js";
 import { buildLevel, getLevelCount, getLevelDef } from "./level.js";
 import { aabb, resolveAxis, segmentHitsRect } from "./physics.js";
+import { sfx, stopMusic } from "./audio.js";
 import {
   addScore,
   camera,
@@ -72,6 +73,7 @@ export function resetPlayer(at = checkpoint) {
   player.frameTimer = 0;
   player.invuln = INVULN_HIT;
   player.jumpCutExempt = false;
+  player.suppressLand = true;
 }
 
 export function resetRun(full = false) {
@@ -121,10 +123,13 @@ export function hitPlayer(force = false) {
   if (nextLives <= 0) {
     setState("dead");
     player.invuln = Infinity;
+    stopMusic();
+    sfx.die();
     setOverlay(true, "SYSTEM CRASH", "The grid swallowed you. Try again, runner.", "REBOOT");
     return true;
   }
 
+  sfx.hit();
   resetPlayer(checkpoint);
   return true;
 }
@@ -133,6 +138,7 @@ export function updatePlayer(dt) {
   const accel = player.onGround ? 3200 : 2200;
   const maxSpeed = 280;
   const friction = player.onGround ? 2400 : 400;
+  const wasGrounded = player.onGround;
 
   if (input.left) {
     player.vx -= accel * dt;
@@ -160,6 +166,7 @@ export function updatePlayer(dt) {
     player.coyote = 0;
     player.jumpBuffer = 0;
     player.jumpCutExempt = false;
+    sfx.jump();
   }
 
   if (input.jumpReleased) {
@@ -173,6 +180,7 @@ export function updatePlayer(dt) {
 
   player.prevX = player.x;
   player.prevY = player.y;
+  const falling = player.vy > 40;
 
   player.x += player.vx * dt;
   resolveAxis(player, level.platforms, "x", player.prevX);
@@ -187,6 +195,8 @@ export function updatePlayer(dt) {
   }
 
   if (player.onGround) {
+    if (!wasGrounded && falling && !player.suppressLand) sfx.land();
+    player.suppressLand = false;
     player.jumpCutExempt = false;
     if (isSafeStanding(player.x, player.y)) {
       setCheckpoint(player.x, player.y);
@@ -242,6 +252,7 @@ export function updateEnemies(dt) {
       addScore(1);
       setShake(0.15);
       updateHud();
+      sfx.stomp();
       return;
     }
 
@@ -265,6 +276,7 @@ export function updateCoins(dt) {
       c.taken = true;
       addScore(1);
       updateHud();
+      sfx.coin();
     }
   }
 }
@@ -296,6 +308,8 @@ export function updateExit() {
   if (levelIndex < getLevelCount() - 1) {
     const next = getLevelDef(levelIndex + 1);
     setState("cleared");
+    stopMusic();
+    sfx.clear();
     setOverlay(
       true,
       "SECTOR CLEARED",
@@ -307,6 +321,8 @@ export function updateExit() {
   }
 
   setState("won");
+  stopMusic();
+  sfx.win();
   setOverlay(
     true,
     "JACKPOT",

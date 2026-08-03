@@ -43,6 +43,7 @@ export const player = {
   frameTimer: 0,
   invuln: 0,
   jumpCutExempt: false,
+  suppressLand: false,
 };
 
 /** Last safe grounded footing */
@@ -51,13 +52,14 @@ export const checkpoint = { x: 0, y: 0 };
 export let reduceMotion = false;
 export let preferTouch = false;
 
-export function initMediaFlags() {
+export function initMediaFlags(onChange) {
   const motionQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
   const coarseQuery = window.matchMedia("(pointer: coarse)");
 
   const refresh = () => {
     reduceMotion = motionQuery.matches;
     preferTouch = coarseQuery.matches;
+    onChange?.();
   };
 
   refresh();

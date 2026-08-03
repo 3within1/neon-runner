@@ -25,6 +25,9 @@
             <span id="sector">STAGE <b>01/05</b></span>
             <span id="score">DATA <b>000</b></span>
             <span id="lives">LIVES <b>03</b></span>
+            <button id="hud-mute-btn" type="button" aria-pressed="false" aria-label="AUDIO ON. Sound is on. Activate to mute.">
+              AUDIO ON
+            </button>
           </div>
         </header>
         <canvas
@@ -50,10 +53,15 @@
             <h1 id="overlay-title">NEON RUNNER</h1>
             <p class="tagline">Sprint the grid. Stomp the drones. Jack the exit.</p>
             <button id="start-btn" type="button">JACK IN</button>
+            <div class="overlay-tools">
+              <button id="mute-btn" type="button" aria-pressed="false" aria-label="AUDIO ON. Sound is on. Activate to mute.">
+                AUDIO ON
+              </button>
+            </div>
             <p class="controls">
-              ← → / A D move &nbsp;·&nbsp; SPACE / W / ↑ jump &nbsp;·&nbsp; Enter to start
+              ← → / A D move &nbsp;·&nbsp; SPACE / W / ↑ jump &nbsp;·&nbsp; M mute &nbsp;·&nbsp; Enter to start
             </p>
-            <p class="build" id="build-version">v1.1.0</p>
+            <p class="build" id="build-version"></p>
           </div>
         </div>
         <div id="touch-controls" hidden>
@@ -66,6 +74,6 @@
       </div>
     </div>
     <p id="status-live" class="sr-only" aria-live="assertive"></p>
-    <script type="module" src="src/main.js"></script>
+    <script type="module" src="src/main.js?v=1.3.1"></script>
   </body>
 </html>

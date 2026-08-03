@@ -1,9 +1,12 @@
 import { initDom } from "./dom.js";
 import { initGame } from "./game.js";
-import { initMediaFlags } from "./state.js";
+import { initMediaFlags, state } from "./state.js";
+import { setTouchVisible } from "./ui.js";
 
 initDom();
-initMediaFlags();
+initMediaFlags(() => {
+  setTouchVisible(state === "playing");
+});
 
 initGame({
   touchLeft: document.getElementById("touch-left"),

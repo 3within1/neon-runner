@@ -12,14 +12,16 @@ npm start
 
 Then open http://127.0.0.1:5173
 
-App version is `package.json` / `APP_VERSION` in `src/constants.js` (keep them matched). It shows on the title overlay as `vX.Y.Z`.
+App version is `package.json` / `APP_VERSION` in `src/constants.js` (keep them matched). The title overlay fills `#build-version` from `APP_VERSION`.
 
 ## Controls
 
 - Move: ← → / A D
 - Jump: Space / W / ↑
+- Mute: M (or AUDIO ON/OFF in HUD / menus)
 - Start / restart / next sector: Enter, Space, or the on-screen button
 - Touch: on-screen controls while playing
+- Audio: procedural SFX + looping 8-bit theme during play; mute with **M** / AUDIO ON/OFF (preference saved)
 
 ## Sectors
 
@@ -40,6 +42,7 @@ Clear an exit to uplink to the next sector. Score and lives carry over until a f
 | `simulation.js` | Player, combat, entities, camera |
 | `render.js` | Canvas drawing |
 | `level.js` | Level authoring |
+| `audio.js` | Procedural Web Audio SFX, 8-bit theme loop, mute |
 | `input.js` | Keyboard / touch |
 | `ui.js` | HUD / overlay / a11y announcements |
 | `state.js` | Shared mutable session state |

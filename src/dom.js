@@ -8,6 +8,8 @@ export const scoreEl = document.querySelector("#score b");
 export const livesEl = document.querySelector("#lives b");
 export const sectorEl = document.querySelector("#sector b");
 export const buildVersionEl = document.getElementById("build-version");
+export const muteBtn = document.getElementById("mute-btn");
+export const hudMuteBtn = document.getElementById("hud-mute-btn");
 export const statusLive = document.getElementById("status-live");
 export const touchControls = document.getElementById("touch-controls");
 

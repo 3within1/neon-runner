@@ -222,7 +222,7 @@ function drawEnemy(e) {
 }
 
 function drawPlayer() {
-  if (player.invuln > 0 && Math.floor(player.invuln * 20) % 2 === 0) return;
+  if (player.invuln > 0 && !reduceMotion && Math.floor(player.invuln * 20) % 2 === 0) return;
 
   const s = worldToScreen(player.x, player.y);
   const cx = s.x + player.w / 2;

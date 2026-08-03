@@ -1,4 +1,5 @@
 import { canvas, startBtn, W } from "./dom.js";
+import { initAudio, sfx, startMusic, unlockAudio } from "./audio.js";
 import { clearInput, initInput } from "./input.js";
 import { getLevelDef } from "./level.js";
 import { draw } from "./render.js";
@@ -17,45 +18,68 @@ import {
   camera,
   level,
   levelIndex,
-  score,
   setShakeOffset,
   setState,
   state,
   time,
 } from "./state.js";
-import { announce, setOverlay, setTouchVisible, updateHud } from "./ui.js";
+import {
+  announce,
+  initMuteControl,
+  setOverlay,
+  setTouchVisible,
+  updateHud,
+} from "./ui.js";
+
+let transitionLocked = false;
+
+function cueGameplayAudio(kind) {
+  startMusic();
+  void unlockAudio().then(() => {
+    if (kind === "start") sfx.start();
+    else sfx.ui();
+  });
+}
 
 export function startGame() {
-  clearInput();
-  resetRun(true);
-  setState("playing");
-  const def = getLevelDef(0);
-  setOverlay(false, "NEON RUNNER", "", "JACK IN");
-  setTouchVisible(true);
-  announce(`Run started. Sector ${def.sector}: ${def.name}.`);
+  if (transitionLocked) return;
+  if (state !== "title" && state !== "dead" && state !== "won") return;
+  transitionLocked = true;
+  try {
+    clearInput();
+    setState("playing");
+    resetRun(true);
+    setOverlay(false, "NEON RUNNER", "", "JACK IN");
+    setTouchVisible(true);
+    const def = getLevelDef(0);
+    announce(`Run started. Sector ${def.sector}: ${def.name}.`);
+    cueGameplayAudio("start");
+  } finally {
+    transitionLocked = false;
+  }
 }
 
 export function continueToNextSector() {
-  clearInput();
-  if (!advanceLevel()) {
-    setState("won");
-    setOverlay(
-      true,
-      "JACKPOT",
-      `All sectors cleared. You jacked ${String(score).padStart(3, "0")} data packs.`,
-      "RUN AGAIN",
-      `SECTOR ${level.sector}`
-    );
-    return;
+  if (transitionLocked) return;
+  if (state !== "cleared") return;
+  transitionLocked = true;
+  try {
+    clearInput();
+    // Only reachable from mid-run clears; final sector goes to "won" in updateExit.
+    advanceLevel();
+    setState("playing");
+    setOverlay(false, "NEON RUNNER", "", "JACK IN");
+    setTouchVisible(true);
+    const def = getLevelDef(levelIndex);
+    announce(`Uplink established. Sector ${def.sector}: ${def.name}.`);
+    cueGameplayAudio("continue");
+  } finally {
+    transitionLocked = false;
   }
-  setState("playing");
-  setOverlay(false, "NEON RUNNER", "", "JACK IN");
-  setTouchVisible(true);
-  const def = getLevelDef(levelIndex);
-  announce(`Uplink established. Sector ${def.sector}: ${def.name}.`);
 }
 
 function onOverlayAction() {
+  if (transitionLocked) return;
   if (state === "cleared") continueToNextSector();
   else if (state === "title" || state === "dead" || state === "won") startGame();
 }
@@ -100,6 +124,9 @@ export function initGame(touchEls) {
     canvas.tabIndex = -1;
   }
 
+  initAudio();
+  initMuteControl();
+
   initInput({
     isMenuOpen,
     onStart: onOverlayAction,
@@ -116,7 +143,7 @@ export function initGame(touchEls) {
   setOverlay(
     true,
     "NEON RUNNER",
-    `Five sectors. Sprint the grid. Stomp the drones. Jack every exit.`,
+    "Five sectors. Sprint the grid. Stomp the drones. Jack every exit.",
     "JACK IN",
     "SECTOR 2084"
   );
