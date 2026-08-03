@@ -1,0 +1,472 @@
+import { TILE } from "./constants.js";
+import { rect } from "./physics.js";
+import { level, levelIndex } from "./state.js";
+
+/**
+ * Declarative level defs (tile units).
+ * platforms/hazards: [tx, ty, tw, th]
+ * coins: [tx, ty]
+ * enemies: [tx, ty, minTx, maxTx]
+ */
+export const LEVELS = [
+  {
+    id: "grid-sprint",
+    sector: "2084",
+    name: "GRID SPRINT",
+    width: 80,
+    height: 12,
+    spawn: [2, 8],
+    exit: [76, 7],
+    platforms: [
+      [0, 10, 14, 2],
+      [16, 10, 10, 2],
+      [28, 10, 8, 2],
+      [40, 10, 18, 2],
+      [62, 10, 18, 2],
+      [6, 7, 3, 1],
+      [12, 5, 3, 1],
+      [18, 7, 2, 1],
+      [22, 4, 3, 1],
+      [30, 6, 4, 1],
+      [36, 3, 3, 1],
+      [44, 7, 3, 1],
+      [50, 5, 4, 1],
+      [56, 3, 3, 1],
+      [64, 7, 4, 1],
+      [70, 5, 3, 1],
+      [74, 9, 4, 1],
+    ],
+    hazards: [
+      [14.15, 9.65, 1.7, 0.35],
+      [26.15, 9.65, 1.7, 0.35],
+      [36.15, 9.65, 3.7, 0.35],
+      [58.2, 9.65, 3.6, 0.35],
+    ],
+    coins: [
+      [7, 6],
+      [13, 4],
+      [19, 6],
+      [23, 3],
+      [31, 5],
+      [37, 2],
+      [45, 6],
+      [51, 4],
+      [52.5, 4],
+      [57, 2],
+      [65, 6],
+      [71, 4],
+      [9, 9],
+      [20, 9],
+      [33, 9],
+      [48, 9],
+      [67, 9],
+    ],
+    enemies: [
+      [8, 9, 6, 12],
+      [18, 9, 16, 24],
+      [32, 5, 30, 34],
+      [46, 9, 42, 54],
+      [52, 4, 50, 54],
+      [66, 6, 64, 68],
+    ],
+  },
+  {
+    id: "ascender",
+    sector: "2091",
+    name: "ASCENDER",
+    width: 64,
+    height: 14,
+    spawn: [2, 11],
+    exit: [58, 0],
+    platforms: [
+      [0, 12, 10, 2],
+      [12, 12, 6, 2],
+      [22, 12, 8, 2],
+      [34, 12, 10, 2],
+      [48, 12, 16, 2],
+      // climb left
+      [4, 9, 3, 1],
+      [8, 7, 3, 1],
+      [3, 5, 3, 1],
+      [8, 3, 4, 1],
+      // mid air chain
+      [14, 9, 2, 1],
+      [18, 7, 2, 1],
+      [22, 5, 3, 1],
+      [27, 3, 3, 1],
+      [32, 5, 2, 1],
+      [36, 7, 3, 1],
+      [40, 4, 3, 1],
+      [45, 6, 3, 1],
+      [50, 4, 3, 1],
+      [54, 2, 6, 1],
+      [56, 8, 3, 1],
+      [44, 9, 3, 1],
+    ],
+    hazards: [
+      [10.15, 11.65, 1.7, 0.35],
+      [18.15, 11.65, 3.7, 0.35],
+      [30.15, 11.65, 3.7, 0.35],
+      [44.2, 11.65, 3.6, 0.35],
+    ],
+    coins: [
+      [5, 8],
+      [9, 6],
+      [4, 4],
+      [9, 2],
+      [15, 8],
+      [19, 6],
+      [23, 4],
+      [28, 2],
+      [33, 4],
+      [37, 6],
+      [41, 3],
+      [46, 5],
+      [51, 3],
+      [56, 1],
+      [57, 7],
+      [24, 11],
+      [38, 11],
+    ],
+    enemies: [
+      [5, 11, 4, 9],
+      [25, 11, 22, 30],
+      [38, 11, 34, 44],
+      [23, 4, 22, 25],
+      [41, 3, 40, 43],
+      [55, 1, 54, 57],
+    ],
+  },
+  {
+    id: "needle-path",
+    sector: "2100",
+    name: "NEEDLE PATH",
+    width: 72,
+    height: 12,
+    spawn: [1, 8],
+    exit: [68, 1],
+    platforms: [
+      [0, 10, 6, 2],
+      [9, 10, 4, 2],
+      [16, 10, 3, 2],
+      [23, 10, 5, 2],
+      [32, 10, 4, 2],
+      [40, 10, 6, 2],
+      [50, 10, 4, 2],
+      [58, 10, 14, 2],
+      // thin floaters
+      [5, 7, 2, 1],
+      [11, 5, 2, 1],
+      [15, 7, 2, 1],
+      [19, 4, 2, 1],
+      [24, 6, 2, 1],
+      [28, 3, 2, 1],
+      [33, 5, 2, 1],
+      [37, 7, 2, 1],
+      [42, 4, 2, 1],
+      [46, 6, 2, 1],
+      [52, 3, 3, 1],
+      [57, 5, 2, 1],
+      [62, 3, 8, 1],
+      [66, 7, 3, 1],
+    ],
+    hazards: [
+      [6.15, 9.65, 2.7, 0.35],
+      [13.15, 9.65, 2.7, 0.35],
+      [19.15, 9.65, 3.7, 0.35],
+      [28.15, 9.65, 3.7, 0.35],
+      [36.15, 9.65, 3.7, 0.35],
+      [46.2, 9.65, 3.6, 0.35],
+      [54.2, 9.65, 3.6, 0.35],
+    ],
+    coins: [
+      [6, 6],
+      [12, 4],
+      [16, 6],
+      [20, 3],
+      [25, 5],
+      [29, 2],
+      [34, 4],
+      [38, 6],
+      [43, 3],
+      [47, 5],
+      [53, 2],
+      [58, 4],
+      [64, 2],
+      [67, 6],
+      [2, 9],
+      [25, 9],
+      [43, 9],
+    ],
+    enemies: [
+      [11, 9, 9, 13],
+      [25, 9, 23, 28],
+      [43, 9, 40, 46],
+      [20, 3, 19, 21],
+      [34, 4, 33, 35],
+      [53, 2, 52, 55],
+    ],
+  },
+  {
+    id: "swarm-grid",
+    sector: "2112",
+    name: "SWARM GRID",
+    width: 78,
+    height: 12,
+    spawn: [2, 8],
+    exit: [74, 6],
+    platforms: [
+      [0, 10, 16, 2],
+      [18, 10, 14, 2],
+      [34, 10, 16, 2],
+      [52, 10, 12, 2],
+      [66, 10, 12, 2],
+      [8, 7, 4, 1],
+      [14, 5, 4, 1],
+      [22, 7, 5, 1],
+      [28, 4, 4, 1],
+      [36, 6, 5, 1],
+      [42, 3, 4, 1],
+      [48, 7, 4, 1],
+      [54, 5, 5, 1],
+      [60, 3, 4, 1],
+      [68, 6, 4, 1],
+      [72, 8, 4, 1],
+    ],
+    hazards: [
+      [16.15, 9.65, 1.7, 0.35],
+      [32.15, 9.65, 1.7, 0.35],
+      [50.15, 9.65, 1.7, 0.35],
+      [64.2, 9.65, 1.6, 0.35],
+    ],
+    coins: [
+      [9, 6],
+      [15, 4],
+      [23, 6],
+      [29, 3],
+      [37, 5],
+      [43, 2],
+      [49, 6],
+      [55, 4],
+      [61, 2],
+      [69, 5],
+      [6, 9],
+      [24, 9],
+      [40, 9],
+      [56, 9],
+      [70, 9],
+    ],
+    enemies: [
+      [4, 9, 4, 14],
+      [10, 9, 5, 15],
+      [22, 9, 18, 30],
+      [26, 9, 20, 32],
+      [40, 9, 34, 48],
+      [44, 9, 36, 50],
+      [56, 9, 52, 62],
+      [16, 4, 14, 18],
+      [30, 3, 28, 32],
+      [43, 2, 42, 46],
+      [56, 4, 54, 59],
+      [69, 5, 68, 71],
+    ],
+  },
+  {
+    id: "blackout-run",
+    sector: "2125",
+    name: "BLACKOUT RUN",
+    width: 96,
+    height: 14,
+    spawn: [2, 10],
+    exit: [92, 1],
+    platforms: [
+      [0, 12, 8, 2],
+      [11, 12, 5, 2],
+      [20, 12, 6, 2],
+      [30, 12, 8, 2],
+      [42, 12, 5, 2],
+      [51, 12, 10, 2],
+      [65, 12, 6, 2],
+      [75, 12, 8, 2],
+      [86, 12, 10, 2],
+      // early climb
+      [3, 9, 3, 1],
+      [7, 7, 2, 1],
+      [11, 5, 3, 1],
+      [16, 7, 2, 1],
+      [20, 4, 3, 1],
+      [25, 6, 3, 1],
+      [29, 3, 3, 1],
+      // mid gauntlet
+      [34, 8, 3, 1],
+      [38, 5, 2, 1],
+      [42, 7, 3, 1],
+      [46, 3, 3, 1],
+      [50, 6, 2, 1],
+      [54, 4, 3, 1],
+      [58, 8, 3, 1],
+      // late climb to exit
+      [64, 5, 3, 1],
+      [68, 7, 2, 1],
+      [72, 4, 3, 1],
+      [76, 6, 3, 1],
+      [80, 3, 3, 1],
+      [84, 5, 3, 1],
+      [88, 3, 6, 1],
+      [90, 8, 3, 1],
+    ],
+    hazards: [
+      [8.15, 11.65, 2.7, 0.35],
+      [16.15, 11.65, 3.7, 0.35],
+      [26.15, 11.65, 3.7, 0.35],
+      [38.15, 11.65, 3.7, 0.35],
+      [47.15, 11.65, 3.7, 0.35],
+      [61.2, 11.65, 3.6, 0.35],
+      [71.2, 11.65, 3.6, 0.35],
+      [83.2, 11.65, 2.6, 0.35],
+    ],
+    coins: [
+      [4, 8],
+      [8, 6],
+      [12, 4],
+      [17, 6],
+      [21, 3],
+      [26, 5],
+      [30, 2],
+      [35, 7],
+      [39, 4],
+      [43, 6],
+      [47, 2],
+      [51, 5],
+      [55, 3],
+      [59, 7],
+      [65, 4],
+      [69, 6],
+      [73, 3],
+      [77, 5],
+      [81, 2],
+      [85, 4],
+      [90, 2],
+      [14, 11],
+      [36, 11],
+      [56, 11],
+      [78, 11],
+    ],
+    enemies: [
+      [4, 11, 4, 7],
+      [14, 11, 11, 16],
+      [23, 11, 20, 26],
+      [34, 11, 30, 38],
+      [46, 11, 42, 47],
+      [56, 11, 51, 61],
+      [70, 11, 65, 71],
+      [80, 11, 75, 83],
+      [12, 4, 11, 14],
+      [21, 3, 20, 23],
+      [30, 2, 29, 32],
+      [47, 2, 46, 49],
+      [55, 3, 54, 57],
+      [73, 3, 72, 75],
+      [81, 2, 80, 83],
+      [89, 2, 88, 91],
+    ],
+  },
+];
+
+export function getLevelCount() {
+  return LEVELS.length;
+}
+
+export function getLevelDef(index = levelIndex) {
+  if (index < 0 || index >= LEVELS.length) {
+    throw new Error(`Invalid level index: ${index}`);
+  }
+  return LEVELS[index];
+}
+
+function addPlatform(tx, ty, tw, th) {
+  level.platforms.push(rect(tx * TILE, ty * TILE, tw * TILE, th * TILE));
+}
+
+function addHazard(tx, ty, tw, th) {
+  const hit = rect(tx * TILE, ty * TILE, tw * TILE, th * TILE);
+  hit.drawX = (tx - 0.15) * TILE;
+  hit.drawY = (ty - 0.15) * TILE;
+  hit.drawW = (tw + 0.3) * TILE;
+  hit.drawH = (th + 0.15) * TILE;
+  level.hazards.push(hit);
+}
+
+function spawnEnemy(tx, ty, minTx, maxTx) {
+  const w = 36;
+  const minX = minTx * TILE;
+  const maxX = maxTx * TILE;
+  if (maxX - minX < w) {
+    throw new Error(
+      `Enemy patrol too narrow in ${level.name || "level"}: [${minTx}, ${maxTx}]`
+    );
+  }
+  const x = tx * TILE;
+  const clampedX = Math.max(minX, Math.min(maxX - w, x));
+  level.enemies.push({
+    x: clampedX,
+    y: ty * TILE,
+    w,
+    h: 28,
+    vx: 80,
+    minX,
+    maxX,
+    alive: true,
+    bob: (tx * 0.7) % (Math.PI * 2),
+  });
+}
+
+function assertExitGrounded() {
+  const exit = level.exit;
+  const feetY = exit.y + exit.h;
+  const grounded = level.platforms.some(
+    (p) =>
+      Math.abs(p.y - feetY) < 0.5 &&
+      exit.x + exit.w > p.x &&
+      exit.x < p.x + p.w
+  );
+  if (!grounded) {
+    throw new Error(
+      `Exit is not standing on a platform top in ${level.name} (sector ${level.sector})`
+    );
+  }
+}
+
+export function buildLevel(index = levelIndex) {
+  const def = getLevelDef(index);
+
+  level.width = def.width * TILE;
+  level.height = def.height * TILE;
+  level.spawn = { x: def.spawn[0] * TILE, y: def.spawn[1] * TILE };
+  level.exit = {
+    x: def.exit[0] * TILE,
+    y: def.exit[1] * TILE,
+    w: TILE * 1.2,
+    h: TILE * 2,
+  };
+  level.sector = def.sector;
+  level.name = def.name;
+  level.platforms = [];
+  level.hazards = [];
+  level.coins = [];
+  level.enemies = [];
+
+  for (const p of def.platforms) addPlatform(...p);
+  for (const h of def.hazards) addHazard(...h);
+  def.coins.forEach(([tx, ty], i) => {
+    level.coins.push({
+      x: tx * TILE + 14,
+      y: ty * TILE + 14,
+      r: 10,
+      taken: false,
+      phase: (i * 0.7) % (Math.PI * 2),
+    });
+  });
+  for (const e of def.enemies) spawnEnemy(...e);
+  assertExitGrounded();
+}

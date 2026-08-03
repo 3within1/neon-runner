@@ -3,6 +3,10 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; style-src 'self' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; script-src 'self'"
+    />
     <title>NEON RUNNER</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -18,26 +22,49 @@
         <header id="hud">
           <div class="brand">NEON RUNNER</div>
           <div class="stats">
-            <span id="score">DATA <b>00</b></span>
+            <span id="sector">STAGE <b>01/05</b></span>
+            <span id="score">DATA <b>000</b></span>
             <span id="lives">LIVES <b>03</b></span>
           </div>
         </header>
-        <canvas id="game" width="960" height="540"></canvas>
+        <canvas
+          id="game"
+          width="960"
+          height="540"
+          tabindex="-1"
+          role="img"
+          aria-label="Neon Runner gameplay. Use arrow keys or WASD to move and jump."
+        ></canvas>
         <div id="scanlines" aria-hidden="true"></div>
         <div id="vignette" aria-hidden="true"></div>
-        <div id="overlay" class="visible">
+        <div
+          id="overlay"
+          class="visible"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="overlay-title"
+          aria-hidden="false"
+        >
           <div class="panel">
             <p class="eyebrow">SECTOR 2084</p>
-            <h1>NEON RUNNER</h1>
+            <h1 id="overlay-title">NEON RUNNER</h1>
             <p class="tagline">Sprint the grid. Stomp the drones. Jack the exit.</p>
             <button id="start-btn" type="button">JACK IN</button>
             <p class="controls">
-              ← → / A D move &nbsp;·&nbsp; SPACE / W / ↑ jump
+              ← → / A D move &nbsp;·&nbsp; SPACE / W / ↑ jump &nbsp;·&nbsp; Enter to start
             </p>
           </div>
         </div>
+        <div id="touch-controls" hidden>
+          <div class="touch-move">
+            <button type="button" id="touch-left" aria-label="Move left">◀</button>
+            <button type="button" id="touch-right" aria-label="Move right">▶</button>
+          </div>
+          <button type="button" id="touch-jump" aria-label="Jump">JUMP</button>
+        </div>
       </div>
     </div>
+    <p id="status-live" class="sr-only" aria-live="assertive"></p>
     <script type="module" src="src/main.js"></script>
   </body>
 </html>
