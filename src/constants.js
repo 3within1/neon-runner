@@ -1,5 +1,5 @@
 /** Keep in sync with package.json "version" */
-export const APP_VERSION = "1.3.1";
+export const APP_VERSION = "1.4.1";
 
 export const LOGICAL_W = 960;
 export const LOGICAL_H = 540;

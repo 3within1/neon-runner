@@ -18,6 +18,8 @@ import { buildLevel, getLevelCount, getLevelDef } from "./level.js";
 import { aabb, resolveAxis, segmentHitsRect } from "./physics.js";
 import { sfx, stopMusic } from "./audio.js";
 import {
+  addRunCoin,
+  addRunStomp,
   addScore,
   camera,
   checkpoint,
@@ -27,6 +29,7 @@ import {
   lives,
   player,
   reduceMotion,
+  resetRunStats,
   score,
   setLevelIndex,
   setLives,
@@ -37,7 +40,7 @@ import {
   shake,
   state,
 } from "./state.js";
-import { setOverlay, updateHud } from "./ui.js";
+import { setOverlay, updateHud, presentRunEnd } from "./ui.js";
 
 export function setCheckpoint(x, y) {
   checkpoint.x = x;
@@ -81,6 +84,7 @@ export function resetRun(full = false) {
     setLevelIndex(0);
     setScore(0);
     setLives(START_LIVES);
+    resetRunStats();
   }
   buildLevel(levelIndex);
   setCheckpoint(level.spawn.x, level.spawn.y);
@@ -125,7 +129,12 @@ export function hitPlayer(force = false) {
     player.invuln = Infinity;
     stopMusic();
     sfx.die();
-    setOverlay(true, "SYSTEM CRASH", "The grid swallowed you. Try again, runner.", "REBOOT");
+    presentRunEnd(
+      "dead",
+      "SYSTEM CRASH",
+      "The grid swallowed you. Try again, runner.",
+      "REBOOT"
+    );
     return true;
   }
 
@@ -250,6 +259,7 @@ export function updateEnemies(dt) {
       player.jumpCutExempt = true;
       player.invuln = Math.max(player.invuln, INVULN_STOMP);
       addScore(1);
+      addRunStomp(1);
       setShake(0.15);
       updateHud();
       sfx.stomp();
@@ -275,6 +285,7 @@ export function updateCoins(dt) {
     if (aabb(player, box)) {
       c.taken = true;
       addScore(1);
+      addRunCoin(1);
       updateHud();
       sfx.coin();
     }
@@ -323,8 +334,8 @@ export function updateExit() {
   setState("won");
   stopMusic();
   sfx.win();
-  setOverlay(
-    true,
+  presentRunEnd(
+    "won",
     "JACKPOT",
     `All sectors cleared. You jacked ${String(score).padStart(3, "0")} data packs.`,
     "RUN AGAIN",

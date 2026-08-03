@@ -52,6 +52,29 @@ export const checkpoint = { x: 0, y: 0 };
 export let reduceMotion = false;
 export let preferTouch = false;
 
+/** Per-run tallies for end screen / leaderboard honesty */
+export let runCoins = 0;
+export let runStomps = 0;
+export let runElapsed = 0;
+
+export function resetRunStats() {
+  runCoins = 0;
+  runStomps = 0;
+  runElapsed = 0;
+}
+
+export function addRunCoin(n = 1) {
+  runCoins += n;
+}
+
+export function addRunStomp(n = 1) {
+  runStomps += n;
+}
+
+export function addRunElapsed(dt) {
+  runElapsed += dt;
+}
+
 export function initMediaFlags(onChange) {
   const motionQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
   const coarseQuery = window.matchMedia("(pointer: coarse)");

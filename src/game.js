@@ -14,6 +14,7 @@ import {
   updatePlayer,
 } from "./simulation.js";
 import {
+  addRunElapsed,
   addTime,
   camera,
   level,
@@ -25,6 +26,7 @@ import {
 } from "./state.js";
 import {
   announce,
+  initLeaderboard,
   initMuteControl,
   setOverlay,
   setTouchVisible,
@@ -91,11 +93,13 @@ function isMenuOpen() {
 let last = performance.now();
 
 function frame(now) {
-  const dt = Math.min(0.033, (now - last) / 1000);
+  const rawDt = Math.max(0, (now - last) / 1000);
+  const dt = Math.min(0.033, rawDt);
   last = now;
   addTime(dt);
 
   if (state === "playing") {
+    addRunElapsed(rawDt);
     updatePlayer(dt);
     if (state === "playing") updateEnemies(dt);
     if (state === "playing") updateCoins(dt);
@@ -126,6 +130,7 @@ export function initGame(touchEls) {
 
   initAudio();
   initMuteControl();
+  initLeaderboard();
 
   initInput({
     isMenuOpen,
