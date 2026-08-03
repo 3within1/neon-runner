@@ -204,6 +204,15 @@ body {
   letter-spacing: 0.04em;
 }
 
+.build {
+  margin-top: 1rem;
+  font-family: Orbitron, sans-serif;
+  font-size: 0.65rem;
+  font-weight: 500;
+  letter-spacing: 0.28em;
+  color: rgba(127, 145, 168, 0.85);
+}
+
 #touch-controls {
   position: absolute;
   inset: auto 0 0.75rem 0;

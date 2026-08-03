@@ -7,6 +7,7 @@ export const startBtn = document.getElementById("start-btn");
 export const scoreEl = document.querySelector("#score b");
 export const livesEl = document.querySelector("#lives b");
 export const sectorEl = document.querySelector("#sector b");
+export const buildVersionEl = document.getElementById("build-version");
 export const statusLive = document.getElementById("status-live");
 export const touchControls = document.getElementById("touch-controls");
 

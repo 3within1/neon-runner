@@ -12,6 +12,8 @@ npm start
 
 Then open http://127.0.0.1:5173
 
+App version is `package.json` / `APP_VERSION` in `src/constants.js` (keep them matched). It shows on the title overlay as `vX.Y.Z`.
+
 ## Controls
 
 - Move: ← → / A D

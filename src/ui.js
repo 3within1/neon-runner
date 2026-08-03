@@ -4,10 +4,12 @@ import {
   scoreEl,
   livesEl,
   sectorEl,
+  buildVersionEl,
   statusLive,
   touchControls,
   canvas,
 } from "./dom.js";
+import { APP_VERSION } from "./constants.js";
 import { getLevelCount, getLevelDef } from "./level.js";
 import { preferTouch, score, lives, state, levelIndex, level } from "./state.js";
 
@@ -28,6 +30,10 @@ export function setTouchVisible(playing) {
   touchControls.hidden = !playing || !preferTouch;
 }
 
+export function syncBuildVersion() {
+  if (buildVersionEl) buildVersionEl.textContent = `v${APP_VERSION}`;
+}
+
 export function setOverlay(show, title, tagline, buttonLabel, eyebrow) {
   const panel = overlay.querySelector(".panel");
   const def = getLevelDef(levelIndex);
@@ -36,6 +42,7 @@ export function setOverlay(show, title, tagline, buttonLabel, eyebrow) {
   panel.querySelector("h1").textContent = title;
   panel.querySelector(".tagline").textContent = tagline;
   startBtn.textContent = buttonLabel;
+  syncBuildVersion();
 
   if (show) {
     overlay.inert = false;
