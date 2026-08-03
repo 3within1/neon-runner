@@ -1,7 +1,7 @@
 {
   "name": "neon-runner",
   "private": true,
-  "version": "1.4.1",
+  "version": "1.4.2",
   "description": "Cyberpunk browser platformer",
   "scripts": {
     "start": "python3 -m http.server 5173 --bind 127.0.0.1",
