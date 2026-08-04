@@ -170,7 +170,7 @@ export function initGame(touchEls) {
   setOverlay(
     true,
     "NEON RUNNER",
-    "Five sectors. Packs +10, stomps +20. Extra life every 500 DATA (max 9).",
+    "Five sectors. Enemy roster per sector. Packs +10, stomps +20 (+40 armored). Extra life every 500 DATA (max 9).",
     "JACK IN",
     "SECTOR 2084"
   );

@@ -29,11 +29,11 @@ App version is `package.json` / `APP_VERSION` in `src/constants.js` (keep them m
 
 ## Sectors
 
-1. **2084 GRID SPRINT** — classic gaps and floating platforms  
-2. **2091 ASCENDER** — vertical climb to a high exit  
-3. **2100 NEEDLE PATH** — thin platforms and dense spikes  
-4. **2112 SWARM GRID** — drone-heavy patrol lanes  
-5. **2125 BLACKOUT RUN** — long finale mixing all of the above  
+1. **2084 GRID SPRINT** — classic gaps, floating platforms, baseline drones  
+2. **2091 ASCENDER** — vertical climb; climber drones on shafts  
+3. **2100 NEEDLE PATH** — thin platforms, dense spikes, fast needle drones  
+4. **2112 SWARM GRID** — dense swarm packs on patrol lanes  
+5. **2125 BLACKOUT RUN** — finale mix: drones, climbers, needles, swarm, armored (2 stomps)  
 
 Clear an exit to uplink to the next sector. Score and lives carry over until a full reboot.
 

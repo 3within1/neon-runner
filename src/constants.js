@@ -1,5 +1,5 @@
 /** Keep in sync with package.json "version" */
-export const APP_VERSION = "1.5.4";
+export const APP_VERSION = "1.5.5";
 
 export const LOGICAL_W = 960;
 export const LOGICAL_H = 540;
@@ -23,8 +23,10 @@ export const STOMP_SLACK = 8;
 
 /** DATA awarded per data pack collected */
 export const SCORE_PACK = 10;
-/** DATA awarded per drone stomped */
+/** DATA awarded per standard enemy stomped */
 export const SCORE_STOMP = 20;
+/** DATA awarded when an armored drone is destroyed */
+export const SCORE_ARMORED = 40;
 
 /** Gameplay / entity colors (sector skies live in sectorTheme.js). */
 export const COLORS = {

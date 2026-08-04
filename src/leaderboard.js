@@ -1,4 +1,4 @@
-import { SCORE_PACK, SCORE_STOMP } from "./constants.js";
+import { SCORE_PACK } from "./constants.js";
 
 const STORAGE_KEY = "neon-runner-scores-v3";
 const LEGACY_STORAGE_KEYS = ["neon-runner-scores"];
@@ -254,6 +254,6 @@ export function formatRunBreakdown(stats) {
   const secs = Math.floor(stats.durationSec % 60);
   const clock = `${mins}:${String(secs).padStart(2, "0")}`;
   const packPts = stats.coins * SCORE_PACK;
-  const killPts = stats.stomps * SCORE_STOMP;
+  const killPts = Math.max(0, stats.score - packPts);
   return `DATA ${String(stats.score).padStart(4, "0")} · PACKS ${stats.coins} (+${packPts}) · KILLS ${stats.stomps} (+${killPts}) · SECTOR ${sectorLabel} · TIME ${clock}`;
 }
