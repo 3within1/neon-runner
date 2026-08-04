@@ -15,6 +15,14 @@ import {
   time,
 } from "./state.js";
 
+/** Cyber rex sprite (faces left). Prefer @2x when available. */
+const rexSprite = new Image();
+let rexSpriteReady = false;
+rexSprite.onload = () => {
+  rexSpriteReady = true;
+};
+rexSprite.src = "assets/cyber-rex@2x.png";
+
 function worldToScreen(x, y) {
   return { x: x - camera.x - shakeX, y: y - camera.y - shakeY };
 }
@@ -333,8 +341,77 @@ function drawExit() {
   ctx.shadowBlur = 0;
 }
 
+function drawRex(e) {
+  const s = worldToScreen(e.x, e.y);
+  if (s.x + e.w < -40 || s.x > W + 40) return;
+
+  const flashing = e.flash > 0 && Math.floor(e.flash * 24) % 2 === 0;
+  const damaged = e.hp < e.maxHp;
+  const walk = reduceMotion ? 0 : e.walk;
+  const stomp = reduceMotion ? 0 : Math.abs(Math.sin(walk)) * 5;
+  const squash = reduceMotion ? 1 : 1 + Math.sin(walk * 2) * 0.05;
+  const tilt = reduceMotion ? 0 : Math.sin(walk) * 0.06;
+  // Sprite art faces left; flip when marching right.
+  const faceLeft = e.vx <= 0;
+  const pulse = reduceMotion ? 0.5 : 0.55 + Math.sin(e.bob * 2) * 0.45;
+
+  ctx.save();
+  ctx.translate(s.x + e.w / 2, s.y + e.h - stomp);
+  ctx.rotate(tilt);
+  ctx.scale(faceLeft ? 1 : -1, 1);
+  ctx.scale(1 / squash, squash);
+  if (flashing) ctx.globalAlpha = 0.45;
+
+  // Neon under-glow (circuits / eye)
+  ctx.shadowColor = damaged ? COLORS.amber : COLORS.magenta;
+  ctx.shadowBlur = reduceMotion ? 0 : 10 + pulse * 14;
+
+  if (rexSpriteReady) {
+    ctx.drawImage(rexSprite, -e.w / 2, -e.h, e.w, e.h);
+  } else {
+    // Fallback silhouette while the sprite loads
+    ctx.fillStyle = e.fill;
+    ctx.strokeStyle = e.stroke;
+    ctx.lineWidth = 2;
+    roundRect(-e.w / 2, -e.h, e.w, e.h, 8);
+    ctx.fill();
+    ctx.stroke();
+  }
+
+  // Soft jaw / eye energy pulse overlay
+  if (!reduceMotion) {
+    ctx.globalAlpha = flashing ? 0.15 : 0.12 + pulse * 0.18;
+    ctx.fillStyle = COLORS.magenta;
+    ctx.beginPath();
+    ctx.ellipse(-e.w * 0.22, -e.h * 0.62, 10, 7, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = "#ff3030";
+    ctx.globalAlpha = flashing ? 0.2 : 0.25 + pulse * 0.35;
+    ctx.beginPath();
+    ctx.arc(-e.w * 0.18, -e.h * 0.72, 3 + pulse, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // Contact shadow under stomping feet
+  ctx.globalAlpha = 0.28 + (1 - stomp / 5) * 0.2;
+  ctx.shadowBlur = 0;
+  ctx.fillStyle = "#000";
+  ctx.beginPath();
+  ctx.ellipse(0, 2, e.w * 0.34, 5 + stomp * 0.3, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.restore();
+  ctx.shadowBlur = 0;
+  ctx.globalAlpha = 1;
+}
+
 function drawEnemy(e) {
   if (!e.alive) return;
+  if (e.type === "rex") {
+    drawRex(e);
+    return;
+  }
+
   const bob = reduceMotion ? 0 : Math.sin(e.bob) * e.bobAmp;
   const drawX = e.axis === "y" ? e.x + bob : e.x;
   const drawY = e.axis === "y" ? e.y : e.y + bob;

@@ -268,6 +268,11 @@ export function updateEnemies(dt) {
       }
     }
 
+    // Heavy walk cycle for stomping ground units (rex).
+    if (e.type === "rex") {
+      e.walk += dt * (4.2 + Math.abs(e.vx) * 0.035);
+    }
+
     const body = enemyBody(e);
     if (!aabb(player, body)) continue;
 
