@@ -1,9 +1,12 @@
+import { getBeatPulse } from "./audio.js";
 import { COLORS, TILE } from "./constants.js";
 import { ctx, W, H } from "./dom.js";
 import { mod } from "./physics.js";
+import { getSectorTheme } from "./sectorTheme.js";
 import {
   camera,
   level,
+  levelIndex,
   player,
   reduceMotion,
   shakeX,
@@ -26,56 +29,201 @@ function roundRect(x, y, w, h, r) {
   ctx.closePath();
 }
 
-function drawBackground() {
+function backdrop() {
+  return getSectorTheme(levelIndex);
+}
+
+/** 0..1 pulse from the music sequencer; frozen when music is off / reduceMotion. */
+function beatPulse() {
+  if (reduceMotion) return 0.5;
+  return getBeatPulse();
+}
+
+function drawSky(bg) {
   const g = ctx.createLinearGradient(0, 0, 0, H);
-  g.addColorStop(0, COLORS.bgTop);
-  g.addColorStop(1, COLORS.bgBot);
+  g.addColorStop(0, bg.bgTop);
+  g.addColorStop(1, bg.bgBot);
   ctx.fillStyle = g;
   ctx.fillRect(0, 0, W, H);
 
-  const scroll = camera.x * 0.25;
-  for (let i = 0; i < 18; i++) {
-    const span = W + 120;
-    const bx = mod(i * 90 - scroll, span) - 60;
-    const bh = 80 + ((i * 37) % 160);
-    const bw = 40 + ((i * 19) % 50);
-    ctx.fillStyle = i % 3 === 0 ? "rgba(255, 43, 214, 0.12)" : "rgba(53, 240, 255, 0.08)";
+  const pulse = beatPulse();
+  const haze = ctx.createRadialGradient(W * 0.5, 0, 20, W * 0.5, 0, H * 0.85);
+  haze.addColorStop(0, bg.skyA);
+  haze.addColorStop(0.55, bg.skyB);
+  haze.addColorStop(1, "transparent");
+  ctx.globalAlpha = 0.7 + pulse * 0.3;
+  ctx.fillStyle = haze;
+  ctx.fillRect(0, 0, W, H);
+  ctx.globalAlpha = 1;
+}
+
+function drawCityBlocks(bg, count, scrollMul, baseH, spread) {
+  const scroll = camera.x * scrollMul;
+  const detail = !reduceMotion;
+  for (let i = 0; i < count; i++) {
+    const span = W + 140;
+    const bx = mod(i * spread - scroll, span) - 70;
+    const bh = baseH + ((i * 37) % 160);
+    const bw = 36 + ((i * 19) % 54);
+    ctx.fillStyle = i % 3 === 0 ? bg.buildingA : bg.buildingB;
     ctx.fillRect(bx, H - bh - 40, bw, bh);
-    ctx.fillStyle = "rgba(255, 200, 80, 0.25)";
+    if (!detail) continue;
+    ctx.fillStyle = bg.window;
     for (let wy = H - bh; wy < H - 50; wy += 16) {
       for (let wx = bx + 8; wx < bx + bw - 8; wx += 12) {
         if ((wx + wy + i) % 5 !== 0) ctx.fillRect(wx, wy, 4, 6);
       }
     }
   }
+}
 
-  ctx.strokeStyle = COLORS.grid;
+function drawTowers(bg) {
+  const scroll = camera.x * 0.2;
+  for (let i = 0; i < 14; i++) {
+    const span = W + 160;
+    const bx = mod(i * 110 - scroll, span) - 80;
+    const bh = 140 + ((i * 53) % 220);
+    const bw = 22 + (i % 4) * 6;
+    ctx.fillStyle = i % 2 === 0 ? bg.buildingA : bg.buildingB;
+    ctx.fillRect(bx, H - bh - 30, bw, bh);
+    // antenna tip
+    ctx.strokeStyle = bg.accent;
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(bx + bw / 2, H - bh - 30);
+    ctx.lineTo(bx + bw / 2, H - bh - 30 - 18 - (i % 5) * 4);
+    ctx.stroke();
+    if (reduceMotion) continue;
+    ctx.fillStyle = bg.window;
+    for (let wy = H - bh; wy < H - 45; wy += 14) {
+      ctx.fillRect(bx + 4, wy, bw - 8, 3);
+    }
+  }
+}
+
+function drawNeedles(bg) {
+  const scroll = camera.x * 0.18;
+  for (let i = 0; i < 22; i++) {
+    const span = W + 100;
+    const bx = mod(i * 70 - scroll, span) - 40;
+    const bh = 100 + ((i * 41) % 240);
+    ctx.fillStyle = i % 2 === 0 ? bg.buildingA : bg.buildingB;
+    ctx.beginPath();
+    ctx.moveTo(bx, H - 36);
+    ctx.lineTo(bx + 7, H - bh - 36);
+    ctx.lineTo(bx + 14, H - 36);
+    ctx.closePath();
+    ctx.fill();
+    if (i % 4 === 0) {
+      ctx.fillStyle = bg.window;
+      ctx.fillRect(bx + 5, H - bh - 40, 3, 6);
+    }
+  }
+}
+
+function drawSwarmCity(bg) {
+  const blocks = reduceMotion ? 14 : 26;
+  const mid = reduceMotion ? 10 : 20;
+  drawCityBlocks(bg, blocks, 0.3, 70, 70);
+  // denser mid-layer
+  const scroll = camera.x * 0.45;
+  for (let i = 0; i < mid; i++) {
+    const span = W + 80;
+    const bx = mod(i * 55 - scroll, span) - 40;
+    const bh = 40 + ((i * 29) % 90);
+    ctx.fillStyle = bg.buildingA;
+    ctx.fillRect(bx, H - bh - 28, 18 + (i % 3) * 8, bh);
+  }
+}
+
+function drawBlackout(bg) {
+  drawCityBlocks(bg, 12, 0.15, 100, 120);
+  // Amber flash near musical downbeats (audio-clock pulse)
+  const pulse = beatPulse();
+  if (!reduceMotion && pulse > 0.92) {
+    ctx.fillStyle = "rgba(255, 120, 40, 0.06)";
+    ctx.fillRect(0, 0, W, H);
+  }
+  ctx.fillStyle = "rgba(0, 0, 0, 0.35)";
+  ctx.fillRect(0, 0, W, H * 0.35);
+}
+
+function drawPerspectiveGrid(bg) {
+  ctx.strokeStyle = bg.grid;
   ctx.lineWidth = 1;
   const gridOff = -mod(camera.x * 0.4, TILE);
+  const horizon = bg.style === "towers" ? H * 0.62 : H * 0.55;
   for (let x = gridOff; x < W; x += TILE) {
     ctx.beginPath();
-    ctx.moveTo(x, H * 0.55);
+    ctx.moveTo(x, horizon);
     ctx.lineTo(x + (x - W / 2) * 0.2, H);
     ctx.stroke();
   }
-  for (let y = H * 0.55; y < H; y += 28) {
+  for (let y = horizon; y < H; y += 28) {
     ctx.beginPath();
     ctx.moveTo(0, y);
     ctx.lineTo(W, y);
     ctx.stroke();
   }
+}
 
-  if (!reduceMotion) {
-    ctx.strokeStyle = "rgba(53, 240, 255, 0.18)";
-    for (let i = 0; i < 40; i++) {
-      const rx = mod(i * 97 + time * 120 + camera.x * 0.1, W + 40) - 20;
-      const ry = mod(i * 53 + time * 340, H + 60) - 30;
-      ctx.beginPath();
+function drawBackdropParticles(bg) {
+  if (reduceMotion) return;
+  ctx.strokeStyle = bg.particle;
+  const count = Math.round(16 + bg.density * 50);
+  // Particle drift speed scales with the sector track BPM
+  const speed = bg.bpm * (bg.style === "towers" ? 0.7 : 1.05);
+  const pulse = beatPulse();
+  ctx.globalAlpha = 0.55 + pulse * 0.45;
+  for (let i = 0; i < count; i++) {
+    const rx = mod(i * 97 + time * speed + camera.x * 0.1, W + 40) - 20;
+    let ry;
+    if (bg.style === "towers") {
+      ry = H - mod(i * 53 + time * (bg.bpm * 1.5), H + 60);
+    } else {
+      ry = mod(i * 53 + time * (bg.bpm * 2.8), H + 60) - 30;
+    }
+    ctx.beginPath();
+    if (bg.style === "towers") {
+      ctx.moveTo(rx, ry);
+      ctx.lineTo(rx, ry - 12);
+    } else if (bg.style === "needles") {
+      ctx.moveTo(rx, ry);
+      ctx.lineTo(rx + 8, ry + 2);
+    } else {
       ctx.moveTo(rx, ry);
       ctx.lineTo(rx - 2, ry + 14);
-      ctx.stroke();
     }
+    ctx.stroke();
   }
+  ctx.globalAlpha = 1;
+}
+
+function drawBackground() {
+  const bg = backdrop();
+  drawSky(bg);
+
+  const buildingCount = Math.round((reduceMotion ? 8 : 10) + bg.density * (reduceMotion ? 10 : 20));
+  switch (bg.style) {
+    case "towers":
+      drawTowers(bg);
+      break;
+    case "needles":
+      drawNeedles(bg);
+      break;
+    case "swarm":
+      drawSwarmCity(bg);
+      break;
+    case "blackout":
+      drawBlackout(bg);
+      break;
+    default:
+      drawCityBlocks(bg, buildingCount, 0.25, 80, 90);
+      break;
+  }
+
+  drawPerspectiveGrid(bg);
+  drawBackdropParticles(bg);
 }
 
 function drawPlatforms() {

@@ -1,3 +1,5 @@
+import { getSectorTheme, getSectorThemeCount } from "./sectorTheme.js";
+
 const STORAGE_KEY = "neon-runner-muted";
 const MASTER_GAIN = 0.55;
 const MUSIC_GAIN = 0.45;
@@ -289,13 +291,13 @@ const NOTE = {
   e5: 659.25,
 };
 
-/** @typedef {{ bpm: number, bass: number[], arps: number[], lead: number[], hats: number[], hatRate?: number }} Theme */
+/** @typedef {{ bass: number[], arps: number[], lead: number[], hats: number[], hatRate?: number }} ThemePattern */
 
-/** @type {Theme[]} */
+/** Pattern data only — BPM / mood come from sectorTheme.js (same index). */
+/** @type {ThemePattern[]} */
 const THEMES = [
   // 0 GRID SPRINT — classic neon pulse
   {
-    bpm: 112,
     bass: [
       NOTE.a2, 0, NOTE.a2, 0, NOTE.a2, 0, NOTE.e3, 0,
       NOTE.a2, 0, NOTE.a2, 0, NOTE.g3, 0, NOTE.e3, 0,
@@ -323,7 +325,6 @@ const THEMES = [
   },
   // 1 ASCENDER — climbing motifs, slightly slower
   {
-    bpm: 104,
     bass: [
       NOTE.e3, 0, NOTE.e3, 0, NOTE.g3, 0, NOTE.b3, 0,
       NOTE.e3, 0, NOTE.e3, 0, NOTE.a3, 0, NOTE.b3, 0,
@@ -351,7 +352,6 @@ const THEMES = [
   },
   // 2 NEEDLE PATH — tense, sparse, higher
   {
-    bpm: 118,
     bass: [
       NOTE.a2, 0, 0, NOTE.a2, 0, 0, NOTE.gs3, 0,
       NOTE.a2, 0, 0, NOTE.a2, 0, NOTE.e3, 0, 0,
@@ -380,7 +380,6 @@ const THEMES = [
   },
   // 3 SWARM GRID — faster, denser, aggressive
   {
-    bpm: 128,
     bass: [
       NOTE.a2, NOTE.a2, 0, NOTE.a2, NOTE.e3, 0, NOTE.a2, 0,
       NOTE.a2, NOTE.a2, 0, NOTE.g3, NOTE.e3, 0, NOTE.a2, 0,
@@ -409,7 +408,6 @@ const THEMES = [
   },
   // 4 BLACKOUT RUN — dark finale, heavier low end
   {
-    bpm: 120,
     bass: [
       NOTE.a2, 0, NOTE.a2, NOTE.a2, 0, NOTE.e3, NOTE.a2, 0,
       NOTE.g3, 0, NOTE.e3, 0, NOTE.a2, NOTE.a2, 0, NOTE.e3,
@@ -446,7 +444,28 @@ function currentTheme() {
 }
 
 function stepSec() {
-  return 60 / currentTheme().bpm / 2;
+  // Half-beat step; BPM lives in sectorTheme.js (shared with visuals).
+  return 60 / getSectorTheme(themeIndex).bpm / 2;
+}
+
+/** Number of music pattern slots (must match LEVELS / SECTOR_THEMES). */
+export function getMusicThemeCount() {
+  return THEMES.length;
+}
+
+/**
+ * 0..1 visual pulse locked to the audio sequencer (peak on musical downbeats).
+ * Frozen at 0.5 when music is not actively scheduling (title, mute, stop, tab pause).
+ */
+export function getBeatPulse() {
+  if (!musicWanted || muted || !ctx || musicTimer == null) return 0.5;
+  const step = stepSec();
+  if (!(step > 0)) return 0.5;
+  const stepsAhead = (nextNoteTime - ctx.currentTime) / step;
+  const currentStep = musicStep - stepsAhead;
+  // 2 half-beat steps = 1 beat; cos so phase 0 (downbeat) → pulse 1
+  const beatPhase = ((currentStep / 2) % 1 + 1) % 1;
+  return 0.5 + 0.5 * Math.cos(beatPhase * Math.PI * 2);
 }
 
 function playMusicTone(freq, when, duration, type, gain) {
@@ -536,7 +555,8 @@ function ensureMusicLoop(resetPhrase = false) {
  * @param {number} [index] Sector theme index (matches LEVELS index).
  */
 export function startMusic(index = 0) {
-  const next = Math.max(0, Math.min(THEMES.length - 1, Math.floor(Number(index) || 0)));
+  const max = Math.min(THEMES.length, getSectorThemeCount()) - 1;
+  const next = Math.max(0, Math.min(max, Math.floor(Number(index) || 0)));
   const themeChanged = next !== themeIndex;
   themeIndex = next;
   musicWanted = true;

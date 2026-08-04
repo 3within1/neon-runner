@@ -1,5 +1,5 @@
 /** Keep in sync with package.json "version" */
-export const APP_VERSION = "1.5.1";
+export const APP_VERSION = "1.5.3";
 
 export const LOGICAL_W = 960;
 export const LOGICAL_H = 540;
@@ -22,14 +22,11 @@ export const SCORE_PACK = 10;
 /** DATA awarded per drone stomped */
 export const SCORE_STOMP = 20;
 
+/** Gameplay / entity colors (sector skies live in sectorTheme.js). */
 export const COLORS = {
-  bgTop: "#12061c",
-  bgBot: "#05030c",
   cyan: "#35f0ff",
   magenta: "#ff2bd6",
   lime: "#b6ff3b",
   amber: "#ffb347",
   platform: "#1a1030",
-  platformEdge: "#ff2bd6",
-  grid: "rgba(53, 240, 255, 0.08)",
 };

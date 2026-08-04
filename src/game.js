@@ -1,8 +1,9 @@
 import { canvas, startBtn, W } from "./dom.js";
-import { initAudio, sfx, startMusic, unlockAudio } from "./audio.js";
+import { getMusicThemeCount, initAudio, sfx, startMusic, unlockAudio } from "./audio.js";
 import { clearInput, initInput } from "./input.js";
-import { getLevelDef } from "./level.js";
+import { getLevelCount, getLevelDef, LEVELS } from "./level.js";
 import { draw } from "./render.js";
+import { SECTOR_THEMES, getSectorThemeCount } from "./sectorTheme.js";
 import {
   advanceLevel,
   resetRun,
@@ -34,6 +35,26 @@ import {
 } from "./ui.js";
 
 let transitionLocked = false;
+
+/** Catch silent drift between level defs, backdrop themes, and music patterns. */
+function assertSectorTables() {
+  const n = getLevelCount();
+  const themes = getSectorThemeCount();
+  const music = getMusicThemeCount();
+  if (themes !== n || music !== n) {
+    console.error(
+      `[neon-runner] sector table length mismatch: levels=${n} sectorThemes=${themes} music=${music}`
+    );
+  }
+  const limit = Math.min(n, themes, SECTOR_THEMES.length, LEVELS.length);
+  for (let i = 0; i < limit; i++) {
+    if (LEVELS[i].id !== SECTOR_THEMES[i].id || LEVELS[i].name !== SECTOR_THEMES[i].name) {
+      console.error(
+        `[neon-runner] sector identity mismatch at ${i}: level=${LEVELS[i].id}/${LEVELS[i].name} theme=${SECTOR_THEMES[i].id}/${SECTOR_THEMES[i].name}`
+      );
+    }
+  }
+}
 
 function cueGameplayAudio(kind) {
   startMusic(levelIndex);
@@ -128,6 +149,7 @@ export function initGame(touchEls) {
     canvas.tabIndex = -1;
   }
 
+  assertSectorTables();
   initAudio();
   initMuteControl();
   initLeaderboard();

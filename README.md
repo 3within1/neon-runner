@@ -22,6 +22,7 @@ App version is `package.json` / `APP_VERSION` in `src/constants.js` (keep them m
 - Start / restart / next sector: Enter, Space, or the on-screen button
 - Touch: on-screen controls while playing
 - Audio: procedural SFX + per-sector 8-bit theme during play; mute with **M** / AUDIO ON/OFF (preference saved)
+- Visuals: per-sector backdrop (palette/style from `sectorTheme.js`); sky/particle pulse follows the audio beat while music plays
 - High scores: local top-10 board on full clear or game over (initials saved in this browser); end-run breakdown; clear board
 - Scoring: data packs **+10** DATA, stomps **+20** DATA (HUD shows DATA / PACKS / KILLS). Weighted scoring uses a fresh local board key.
 
@@ -44,7 +45,8 @@ Clear an exit to uplink to the next sector. Score and lives carry over until a f
 | `simulation.js` | Player, combat, entities, camera |
 | `render.js` | Canvas drawing |
 | `level.js` | Level authoring |
-| `audio.js` | Procedural Web Audio SFX, 8-bit theme loop, mute |
+| `audio.js` | Procedural Web Audio SFX, per-sector theme loops, mute |
+| `sectorTheme.js` | Shared sector BPM / mood / backdrop identity |
 | `leaderboard.js` | Local top-10 high scores |
 | `input.js` | Keyboard / touch |
 | `ui.js` | HUD / overlay / a11y announcements |
