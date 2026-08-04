@@ -8,6 +8,8 @@ import {
   JUMP_CUT_THRESHOLD,
   JUMP_VELOCITY,
   MAX_FALL,
+  SCORE_PACK,
+  SCORE_STOMP,
   START_LIVES,
   STOMP_BOUNCE,
   STOMP_SLACK,
@@ -258,7 +260,7 @@ export function updateEnemies(dt) {
       player.vy = STOMP_BOUNCE;
       player.jumpCutExempt = true;
       player.invuln = Math.max(player.invuln, INVULN_STOMP);
-      addScore(1);
+      addScore(SCORE_STOMP);
       addRunStomp(1);
       setShake(0.15);
       updateHud();
@@ -284,7 +286,7 @@ export function updateCoins(dt) {
     };
     if (aabb(player, box)) {
       c.taken = true;
-      addScore(1);
+      addScore(SCORE_PACK);
       addRunCoin(1);
       updateHud();
       sfx.coin();
@@ -324,7 +326,7 @@ export function updateExit() {
     setOverlay(
       true,
       "SECTOR CLEARED",
-      `${level.name} jacked. Next uplink: ${next.name}. Data ${String(score).padStart(3, "0")}.`,
+      `${level.name} jacked. Next uplink: ${next.name}. DATA ${String(score).padStart(4, "0")}.`,
       "JACK DEEPER",
       `SECTOR ${level.sector}`
     );
@@ -337,7 +339,7 @@ export function updateExit() {
   presentRunEnd(
     "won",
     "JACKPOT",
-    `All sectors cleared. You jacked ${String(score).padStart(3, "0")} data packs.`,
+    `All sectors cleared. DATA ${String(score).padStart(4, "0")} jacked.`,
     "RUN AGAIN",
     `SECTOR ${level.sector}`
   );

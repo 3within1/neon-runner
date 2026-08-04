@@ -1,8 +1,11 @@
-const STORAGE_KEY = "neon-runner-scores";
+import { SCORE_PACK, SCORE_STOMP } from "./constants.js";
+
+const STORAGE_KEY = "neon-runner-scores-v3";
+const LEGACY_STORAGE_KEYS = ["neon-runner-scores"];
 const INITIALS_KEY = "neon-runner-initials";
 const MAX_ENTRIES = 10;
 const DEFAULT_INITIALS = "RUN";
-const SCHEMA_VERSION = 2;
+const SCHEMA_VERSION = 3;
 
 /**
  * @typedef {{
@@ -93,6 +96,20 @@ export function getScores() {
       .slice(0, MAX_ENTRIES);
   } catch {
     return [];
+  }
+}
+
+/**
+ * Drop pre-v3 boards so 1-point-era totals never mix with weighted DATA.
+ * Safe to call on every boot.
+ */
+export function migrateScoreStorage() {
+  try {
+    for (const key of LEGACY_STORAGE_KEYS) {
+      localStorage.removeItem(key);
+    }
+  } catch {
+    /* ignore */
   }
 }
 
@@ -229,12 +246,14 @@ export function clearScores() {
 }
 
 /**
- * @param {{ score: number, coins: number, stomps: number, sectorIndex: number, sectorTotal: number, durationSec: number, outcome: 'won' | 'dead' }} stats
+ * @param {{ score: number, coins: number, stomps: number, sectorIndex: number, sectorTotal: number, durationSec: number, outcome?: 'won' | 'dead' }} stats
  */
 export function formatRunBreakdown(stats) {
   const sectorLabel = `${String(stats.sectorIndex + 1).padStart(2, "0")}/${String(stats.sectorTotal).padStart(2, "0")}`;
   const mins = Math.floor(stats.durationSec / 60);
   const secs = Math.floor(stats.durationSec % 60);
   const clock = `${mins}:${String(secs).padStart(2, "0")}`;
-  return `DATA ${String(stats.score).padStart(3, "0")} · COINS ${stats.coins} · STOMPS ${stats.stomps} · SECTOR ${sectorLabel} · TIME ${clock}`;
+  const packPts = stats.coins * SCORE_PACK;
+  const killPts = stats.stomps * SCORE_STOMP;
+  return `DATA ${String(stats.score).padStart(4, "0")} · PACKS ${stats.coins} (+${packPts}) · KILLS ${stats.stomps} (+${killPts}) · SECTOR ${sectorLabel} · TIME ${clock}`;
 }

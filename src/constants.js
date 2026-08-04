@@ -1,5 +1,5 @@
 /** Keep in sync with package.json "version" */
-export const APP_VERSION = "1.4.2";
+export const APP_VERSION = "1.5.0";
 
 export const LOGICAL_W = 960;
 export const LOGICAL_H = 540;
@@ -16,6 +16,11 @@ export const INVULN_STOMP = 0.2;
 export const JUMP_CUT_FACTOR = 0.65;
 export const JUMP_CUT_THRESHOLD = -280;
 export const STOMP_SLACK = 8;
+
+/** DATA awarded per data pack collected */
+export const SCORE_PACK = 10;
+/** DATA awarded per drone stomped */
+export const SCORE_STOMP = 20;
 
 export const COLORS = {
   bgTop: "#12061c",

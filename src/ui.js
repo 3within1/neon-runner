@@ -2,6 +2,8 @@ import {
   overlay,
   startBtn,
   scoreEl,
+  packsEl,
+  killsEl,
   livesEl,
   sectorEl,
   buildVersionEl,
@@ -26,6 +28,7 @@ import {
   getLastInitials,
   getScores,
   isHighScore,
+  migrateScoreStorage,
   normalizeInitials,
   submitScore,
 } from "./leaderboard.js";
@@ -56,12 +59,22 @@ import {
 
 /** @type {PendingScore | null} */
 let pendingScore = null;
+let announcedScoreReset = false;
 
 export function updateHud() {
-  scoreEl.textContent = String(score).padStart(3, "0");
+  scoreEl.textContent = String(score).padStart(4, "0");
+  if (packsEl) packsEl.textContent = String(runCoins).padStart(2, "0");
+  if (killsEl) killsEl.textContent = String(runStomps).padStart(2, "0");
   livesEl.textContent = String(Math.max(0, lives)).padStart(2, "0");
   if (sectorEl) {
     sectorEl.textContent = `${String(levelIndex + 1).padStart(2, "0")}/${String(getLevelCount()).padStart(2, "0")}`;
+  }
+  const scoreWrap = scoreEl?.parentElement;
+  if (scoreWrap) {
+    scoreWrap.setAttribute(
+      "aria-label",
+      `DATA ${score}, ${runCoins} packs, ${runStomps} kills`
+    );
   }
 }
 
@@ -197,7 +210,7 @@ function renderLeaderboard() {
     name.textContent = entry.initials;
     const pts = document.createElement("span");
     pts.className = "lb-score";
-    pts.textContent = String(entry.score).padStart(3, "0");
+    pts.textContent = String(entry.score).padStart(4, "0");
     const out = document.createElement("span");
     out.className = "lb-out";
     out.textContent = entry.outcome === "won" ? "W" : "X";
@@ -292,6 +305,18 @@ function handleClearBoard(e) {
 }
 
 export function initLeaderboard() {
+  migrateScoreStorage();
+  if (!announcedScoreReset) {
+    announcedScoreReset = true;
+    try {
+      if (localStorage.getItem("neon-runner-scoring-notice") !== "1.5") {
+        localStorage.setItem("neon-runner-scoring-notice", "1.5");
+        announce("Scoring updated — packs +10, stomps +20. Local TOP RUNS board reset.");
+      }
+    } catch {
+      /* ignore */
+    }
+  }
   renderLeaderboard();
   setScoreEntryVisible(false);
   setRunSummary("");

@@ -148,7 +148,7 @@ export function initGame(touchEls) {
   setOverlay(
     true,
     "NEON RUNNER",
-    "Five sectors. Sprint the grid. Stomp the drones. Jack every exit.",
+    "Five sectors. Jack data packs (+10). Stomp drones (+20). Both raise DATA.",
     "JACK IN",
     "SECTOR 2084"
   );

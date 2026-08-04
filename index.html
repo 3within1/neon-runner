@@ -23,7 +23,9 @@
           <div class="brand">NEON RUNNER</div>
           <div class="stats">
             <span id="sector">STAGE <b>01/05</b></span>
-            <span id="score">DATA <b>000</b></span>
+            <span id="score">DATA <b>0000</b></span>
+            <span id="packs">PACKS <b>00</b></span>
+            <span id="kills">KILLS <b>00</b></span>
             <span id="lives">LIVES <b>03</b></span>
             <button id="hud-mute-btn" type="button" aria-pressed="false" aria-label="AUDIO ON. Sound is on. Activate to mute.">
               AUDIO ON
@@ -51,7 +53,7 @@
           <div class="panel">
             <p class="eyebrow">SECTOR 2084</p>
             <h1 id="overlay-title">NEON RUNNER</h1>
-            <p class="tagline">Sprint the grid. Stomp the drones. Jack the exit.</p>
+            <p class="tagline">Sprint the grid. Jack data packs. Stomp drones. Both raise DATA.</p>
             <div id="score-entry" class="score-entry" hidden>
               <label for="initials-input">TAG</label>
               <input
@@ -78,6 +80,8 @@
             </div>
             <p class="controls">
               ← → / A D move &nbsp;·&nbsp; SPACE / W / ↑ jump &nbsp;·&nbsp; M mute &nbsp;·&nbsp; Enter to start
+              <br />
+              Data packs +10 DATA &nbsp;·&nbsp; Stomp drones +20 DATA
             </p>
             <p class="build" id="build-version"></p>
           </div>
@@ -92,6 +96,6 @@
       </div>
     </div>
     <p id="status-live" class="sr-only" aria-live="assertive"></p>
-    <script type="module" src="src/main.js?v=1.4.2"></script>
+    <script type="module" src="src/main.js?v=1.5.0"></script>
   </body>
 </html>

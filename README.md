@@ -23,6 +23,7 @@ App version is `package.json` / `APP_VERSION` in `src/constants.js` (keep them m
 - Touch: on-screen controls while playing
 - Audio: procedural SFX + looping 8-bit theme during play; mute with **M** / AUDIO ON/OFF (preference saved)
 - High scores: local top-10 board on full clear or game over (initials saved in this browser); end-run breakdown; clear board
+- Scoring: data packs **+10** DATA, stomps **+20** DATA (HUD shows DATA / PACKS / KILLS). Weighted scoring uses a fresh local board key.
 
 ## Sectors
 
