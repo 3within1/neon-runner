@@ -1,5 +1,5 @@
 /** Keep in sync with package.json "version" */
-export const APP_VERSION = "1.5.5";
+export const APP_VERSION = "1.5.6";
 
 export const LOGICAL_W = 960;
 export const LOGICAL_H = 540;
@@ -27,6 +27,8 @@ export const SCORE_PACK = 10;
 export const SCORE_STOMP = 20;
 /** DATA awarded when an armored drone is destroyed */
 export const SCORE_ARMORED = 40;
+/** DATA awarded when a cyber rex is destroyed */
+export const SCORE_REX = 60;
 
 /** Gameplay / entity colors (sector skies live in sectorTheme.js). */
 export const COLORS = {

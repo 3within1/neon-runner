@@ -1,4 +1,4 @@
-import { COLORS, SCORE_ARMORED, SCORE_STOMP, TILE } from "./constants.js";
+import { COLORS, SCORE_ARMORED, SCORE_REX, SCORE_STOMP, TILE } from "./constants.js";
 import { rect } from "./physics.js";
 import { level, levelIndex } from "./state.js";
 
@@ -88,6 +88,23 @@ export const ENEMY_TYPES = {
     thruster: COLORS.amber,
     radius: 6,
   },
+  /** Ground-stomping cyber T-Rex (sprite + walk cycle). */
+  rex: {
+    w: 96,
+    h: 72,
+    speed: 42,
+    hp: 3,
+    score: SCORE_REX,
+    axis: "x",
+    bobAmp: 2,
+    bobSpeed: 5,
+    grounded: true,
+    fill: "#163018",
+    stroke: COLORS.magenta,
+    eye: "#ff3030",
+    thruster: COLORS.cyan,
+    radius: 4,
+  },
 };
 export const LEVELS = [
   {
@@ -146,7 +163,8 @@ export const LEVELS = [
       [8, 9, 6, 12, "drone"],
       [18, 9, 16, 24, "drone"],
       [32, 5, 30, 34, "drone"],
-      [46, 9, 42, 54, "drone"],
+      // cyber rex patrols the long mid runway
+      [46, 8.5, 40, 57, "rex"],
       [52, 4, 50, 54, "drone"],
       [66, 6, 64, 68, "drone"],
     ],
@@ -440,7 +458,8 @@ export const LEVELS = [
       [23, 11, 20, 26, "drone"],
       [34, 11, 30, 38, "armored"],
       [46, 11, 42, 47, "needle"],
-      [56, 11, 51, 61, "swarm"],
+      // cyber rex mini-boss lane on the long mid platform
+      [56, 10.5, 51, 61, "rex"],
       [70, 11, 65, 71, "armored"],
       [80, 11, 75, 83, "drone"],
       [12, 4, 11, 14, "needle"],
@@ -497,6 +516,7 @@ function spawnEnemy(tx, ty, minA, maxA, typeName = "drone") {
   const enemy = {
     type: typeName,
     axis: def.axis,
+    grounded: !!def.grounded,
     x: tx * TILE,
     y: ty * TILE,
     w: def.w,
@@ -520,6 +540,7 @@ function spawnEnemy(tx, ty, minA, maxA, typeName = "drone") {
     radius: def.radius,
     alive: true,
     flash: 0,
+    walk: (tx * 1.3) % (Math.PI * 2),
     bob: (tx * 0.7 + ty * 0.3) % (Math.PI * 2),
   };
 
@@ -531,11 +552,35 @@ function spawnEnemy(tx, ty, minA, maxA, typeName = "drone") {
     enemy.vx = def.speed;
   }
 
+  if (def.grounded) {
+    snapEnemyToGround(enemy);
+  }
+
   level.enemies.push(enemy);
+}
+
+/** Place grounded enemies so their feet sit on the nearest platform top below. */
+function snapEnemyToGround(e) {
+  const midX = e.x + e.w * 0.5;
+  let bestTop = null;
+  for (const p of level.platforms) {
+    if (midX < p.x || midX > p.x + p.w) continue;
+    if (p.y < e.y - TILE) continue;
+    if (bestTop === null || p.y < bestTop) bestTop = p.y;
+  }
+  if (bestTop !== null) {
+    e.y = bestTop - e.h;
+    e.minY = e.y;
+    e.maxY = e.y + e.h;
+  }
 }
 
 /** World-space AABB including bob offset (shared by combat + draw). */
 export function enemyBody(e) {
+  // Grounded units keep a stable feet-aligned hitbox; motion is visual-only.
+  if (e.grounded) {
+    return { x: e.x, y: e.y, w: e.w, h: e.h };
+  }
   const bob = Math.sin(e.bob) * e.bobAmp;
   if (e.axis === "y") {
     return { x: e.x + bob, y: e.y, w: e.w, h: e.h };
