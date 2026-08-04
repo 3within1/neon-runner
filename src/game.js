@@ -36,7 +36,7 @@ import {
 let transitionLocked = false;
 
 function cueGameplayAudio(kind) {
-  startMusic();
+  startMusic(levelIndex);
   void unlockAudio().then(() => {
     if (kind === "start") sfx.start();
     else sfx.ui();

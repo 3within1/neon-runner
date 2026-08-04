@@ -20,6 +20,8 @@ let musicTimer = null;
 let musicStep = 0;
 /** AudioContext time of the next sequencer step */
 let nextNoteTime = 0;
+/** Active sector theme index (0–4) */
+let themeIndex = 0;
 /** @type {(() => void) | null} */
 let detachUnlockGestures = null;
 
@@ -252,14 +254,9 @@ export const sfx = {
 };
 
 /*
- * Original 8-bit neon theme (NOT a copy of any licensed track).
- * Dark minor pulse + square lead — cyberpunk runner energy.
+ * Original 8-bit sector themes (NOT copies of licensed tracks).
+ * Each LEVELS[] index maps to one theme — distinct BPM / harmony / density.
  */
-const BPM = 112;
-const STEP_SEC = 60 / BPM / 2; // eighth notes
-const LOOKAHEAD_SEC = 0.12;
-const SCHEDULE_MS = 25;
-
 const NOTE = {
   rest: 0,
   a2: 110.0,
@@ -269,6 +266,7 @@ const NOTE = {
   ds3: 155.56,
   e3: 164.81,
   f3: 174.61,
+  fs3: 185.0,
   g3: 196.0,
   gs3: 207.65,
   a3: 220.0,
@@ -279,41 +277,177 @@ const NOTE = {
   ds4: 311.13,
   e4: 329.63,
   f4: 349.23,
+  fs4: 369.99,
   g4: 392.0,
   gs4: 415.3,
   a4: 440.0,
+  as4: 466.16,
+  b4: 493.88,
   c5: 523.25,
   d5: 587.33,
   ds5: 622.25,
+  e5: 659.25,
 };
 
-const BASS = [
-  NOTE.a2, 0, NOTE.a2, 0, NOTE.a2, 0, NOTE.e3, 0,
-  NOTE.a2, 0, NOTE.a2, 0, NOTE.g3, 0, NOTE.e3, 0,
-  NOTE.f3, 0, NOTE.f3, 0, NOTE.f3, 0, NOTE.c3, 0,
-  NOTE.e3, 0, NOTE.e3, 0, NOTE.g3, 0, NOTE.e3, 0,
+/** @typedef {{ bpm: number, bass: number[], arps: number[], lead: number[], hats: number[], hatRate?: number }} Theme */
+
+/** @type {Theme[]} */
+const THEMES = [
+  // 0 GRID SPRINT — classic neon pulse
+  {
+    bpm: 112,
+    bass: [
+      NOTE.a2, 0, NOTE.a2, 0, NOTE.a2, 0, NOTE.e3, 0,
+      NOTE.a2, 0, NOTE.a2, 0, NOTE.g3, 0, NOTE.e3, 0,
+      NOTE.f3, 0, NOTE.f3, 0, NOTE.f3, 0, NOTE.c3, 0,
+      NOTE.e3, 0, NOTE.e3, 0, NOTE.g3, 0, NOTE.e3, 0,
+    ],
+    arps: [
+      NOTE.a3, NOTE.c4, NOTE.e4, NOTE.a4, NOTE.e4, NOTE.c4, NOTE.a3, NOTE.e3,
+      NOTE.a3, NOTE.c4, NOTE.e4, NOTE.a4, NOTE.e4, NOTE.c4, NOTE.a3, NOTE.e3,
+      NOTE.f3, NOTE.a3, NOTE.c4, NOTE.f4, NOTE.c4, NOTE.a3, NOTE.f3, NOTE.c3,
+      NOTE.e3, NOTE.g3, NOTE.b3, NOTE.e4, NOTE.b3, NOTE.g3, NOTE.e3, NOTE.b2,
+    ],
+    lead: [
+      NOTE.a4, 0, NOTE.a4, NOTE.g4, NOTE.e4, 0, NOTE.c4, 0,
+      NOTE.d4, NOTE.e4, 0, NOTE.g4, NOTE.a4, 0, 0, 0,
+      NOTE.c5, 0, NOTE.a4, 0, NOTE.g4, NOTE.a4, NOTE.e4, 0,
+      NOTE.d4, 0, NOTE.c4, NOTE.e4, NOTE.a3, 0, 0, 0,
+    ],
+    hats: [
+      1, 0, 1, 0, 1, 0, 1, 1,
+      1, 0, 1, 0, 1, 0, 1, 1,
+      1, 0, 1, 0, 1, 0, 1, 1,
+      1, 0, 1, 1, 1, 0, 1, 1,
+    ],
+  },
+  // 1 ASCENDER — climbing motifs, slightly slower
+  {
+    bpm: 104,
+    bass: [
+      NOTE.e3, 0, NOTE.e3, 0, NOTE.g3, 0, NOTE.b3, 0,
+      NOTE.e3, 0, NOTE.e3, 0, NOTE.a3, 0, NOTE.b3, 0,
+      NOTE.c3, 0, NOTE.c3, 0, NOTE.e3, 0, NOTE.g3, 0,
+      NOTE.d3, 0, NOTE.d3, 0, NOTE.fs3, 0, NOTE.a3, 0,
+    ],
+    arps: [
+      NOTE.e3, NOTE.g3, NOTE.b3, NOTE.e4, NOTE.g4, NOTE.e4, NOTE.b3, NOTE.g3,
+      NOTE.e3, NOTE.a3, NOTE.c4, NOTE.e4, NOTE.a4, NOTE.e4, NOTE.c4, NOTE.a3,
+      NOTE.c3, NOTE.e3, NOTE.g3, NOTE.c4, NOTE.e4, NOTE.c4, NOTE.g3, NOTE.e3,
+      NOTE.d3, NOTE.fs3, NOTE.a3, NOTE.d4, NOTE.fs4, NOTE.d4, NOTE.a3, NOTE.fs3,
+    ],
+    lead: [
+      NOTE.e4, NOTE.g4, 0, NOTE.b4, NOTE.e5, 0, 0, NOTE.b4,
+      NOTE.a4, 0, NOTE.g4, NOTE.e4, 0, NOTE.c4, 0, 0,
+      NOTE.c5, 0, NOTE.g4, 0, NOTE.e4, NOTE.g4, NOTE.c5, 0,
+      NOTE.d5, NOTE.a4, 0, NOTE.fs4, NOTE.d4, 0, 0, 0,
+    ],
+    hats: [
+      1, 0, 0, 1, 1, 0, 1, 0,
+      1, 0, 0, 1, 1, 0, 1, 1,
+      1, 0, 0, 1, 1, 0, 1, 0,
+      1, 0, 1, 0, 1, 1, 0, 1,
+    ],
+  },
+  // 2 NEEDLE PATH — tense, sparse, higher
+  {
+    bpm: 118,
+    bass: [
+      NOTE.a2, 0, 0, NOTE.a2, 0, 0, NOTE.gs3, 0,
+      NOTE.a2, 0, 0, NOTE.a2, 0, NOTE.e3, 0, 0,
+      NOTE.f3, 0, 0, NOTE.f3, 0, 0, NOTE.ds3, 0,
+      NOTE.e3, 0, NOTE.e3, 0, 0, NOTE.b2, 0, 0,
+    ],
+    arps: [
+      NOTE.a4, 0, NOTE.e4, 0, NOTE.c5, 0, NOTE.e4, 0,
+      NOTE.a4, 0, NOTE.ds4, 0, NOTE.e4, 0, NOTE.a3, 0,
+      NOTE.f4, 0, NOTE.c4, 0, NOTE.gs4, 0, NOTE.c4, 0,
+      NOTE.e4, 0, NOTE.b3, 0, NOTE.gs4, 0, NOTE.e4, 0,
+    ],
+    lead: [
+      NOTE.e5, 0, 0, NOTE.ds5, NOTE.e5, 0, NOTE.c5, 0,
+      0, NOTE.a4, 0, 0, NOTE.gs4, NOTE.a4, 0, 0,
+      NOTE.f4, 0, NOTE.gs4, 0, NOTE.a4, 0, 0, NOTE.e4,
+      0, 0, NOTE.ds4, NOTE.e4, 0, NOTE.b3, 0, 0,
+    ],
+    hats: [
+      1, 0, 0, 1, 0, 0, 1, 0,
+      1, 0, 1, 0, 0, 1, 0, 1,
+      1, 0, 0, 1, 0, 0, 1, 0,
+      1, 1, 0, 1, 0, 1, 0, 0,
+    ],
+    hatRate: 3.2,
+  },
+  // 3 SWARM GRID — faster, denser, aggressive
+  {
+    bpm: 128,
+    bass: [
+      NOTE.a2, NOTE.a2, 0, NOTE.a2, NOTE.e3, 0, NOTE.a2, 0,
+      NOTE.a2, NOTE.a2, 0, NOTE.g3, NOTE.e3, 0, NOTE.a2, 0,
+      NOTE.f3, NOTE.f3, 0, NOTE.f3, NOTE.c3, 0, NOTE.f3, 0,
+      NOTE.e3, NOTE.e3, 0, NOTE.g3, NOTE.e3, NOTE.e3, 0, NOTE.b2,
+    ],
+    arps: [
+      NOTE.a3, NOTE.e4, NOTE.a4, NOTE.e4, NOTE.a3, NOTE.e4, NOTE.c5, NOTE.e4,
+      NOTE.a3, NOTE.e4, NOTE.a4, NOTE.e4, NOTE.g4, NOTE.e4, NOTE.a4, NOTE.e4,
+      NOTE.f3, NOTE.c4, NOTE.f4, NOTE.c4, NOTE.f3, NOTE.c4, NOTE.a4, NOTE.c4,
+      NOTE.e3, NOTE.b3, NOTE.e4, NOTE.b3, NOTE.g4, NOTE.b3, NOTE.e4, NOTE.b3,
+    ],
+    lead: [
+      NOTE.a4, NOTE.a4, NOTE.g4, 0, NOTE.e4, NOTE.e4, 0, NOTE.c5,
+      NOTE.a4, 0, NOTE.g4, NOTE.a4, NOTE.e5, 0, 0, NOTE.a4,
+      NOTE.f4, NOTE.f4, NOTE.a4, 0, NOTE.c5, 0, NOTE.a4, 0,
+      NOTE.e4, NOTE.g4, NOTE.b4, NOTE.e5, 0, NOTE.b4, NOTE.g4, 0,
+    ],
+    hats: [
+      1, 1, 1, 0, 1, 1, 1, 1,
+      1, 1, 1, 0, 1, 1, 0, 1,
+      1, 1, 1, 0, 1, 1, 1, 1,
+      1, 0, 1, 1, 1, 1, 1, 1,
+    ],
+    hatRate: 2.8,
+  },
+  // 4 BLACKOUT RUN — dark finale, heavier low end
+  {
+    bpm: 120,
+    bass: [
+      NOTE.a2, 0, NOTE.a2, NOTE.a2, 0, NOTE.e3, NOTE.a2, 0,
+      NOTE.g3, 0, NOTE.e3, 0, NOTE.a2, NOTE.a2, 0, NOTE.e3,
+      NOTE.f3, 0, NOTE.f3, NOTE.f3, 0, NOTE.c3, NOTE.f3, 0,
+      NOTE.e3, 0, NOTE.e3, NOTE.ds3, NOTE.e3, 0, NOTE.b2, 0,
+    ],
+    arps: [
+      NOTE.a3, 0, NOTE.c4, NOTE.e4, 0, NOTE.a4, 0, NOTE.e4,
+      NOTE.g3, 0, NOTE.b3, NOTE.e4, 0, NOTE.g4, 0, NOTE.e4,
+      NOTE.f3, 0, NOTE.a3, NOTE.c4, 0, NOTE.f4, 0, NOTE.c4,
+      NOTE.e3, 0, NOTE.gs3, NOTE.b3, 0, NOTE.e4, NOTE.gs4, 0,
+    ],
+    lead: [
+      NOTE.a4, 0, 0, NOTE.e4, NOTE.a4, NOTE.c5, 0, 0,
+      NOTE.b4, 0, NOTE.g4, 0, NOTE.e4, 0, NOTE.g4, 0,
+      NOTE.a4, NOTE.f4, 0, NOTE.c5, 0, 0, NOTE.a4, 0,
+      NOTE.gs4, NOTE.e4, 0, NOTE.b4, NOTE.e5, 0, 0, 0,
+    ],
+    hats: [
+      1, 0, 1, 1, 0, 1, 0, 1,
+      1, 0, 1, 1, 0, 1, 1, 1,
+      1, 0, 1, 1, 0, 1, 0, 1,
+      1, 1, 0, 1, 1, 0, 1, 1,
+    ],
+    hatRate: 2.0,
+  },
 ];
 
-const ARPS = [
-  NOTE.a3, NOTE.c4, NOTE.e4, NOTE.a4, NOTE.e4, NOTE.c4, NOTE.a3, NOTE.e3,
-  NOTE.a3, NOTE.c4, NOTE.e4, NOTE.a4, NOTE.e4, NOTE.c4, NOTE.a3, NOTE.e3,
-  NOTE.f3, NOTE.a3, NOTE.c4, NOTE.f4, NOTE.c4, NOTE.a3, NOTE.f3, NOTE.c3,
-  NOTE.e3, NOTE.g3, NOTE.b3, NOTE.e4, NOTE.b3, NOTE.g3, NOTE.e3, NOTE.b2,
-];
+const LOOKAHEAD_SEC = 0.12;
+const SCHEDULE_MS = 25;
 
-const LEAD = [
-  NOTE.a4, 0, NOTE.a4, NOTE.g4, NOTE.e4, 0, NOTE.c4, 0,
-  NOTE.d4, NOTE.e4, 0, NOTE.g4, NOTE.a4, 0, 0, 0,
-  NOTE.c5, 0, NOTE.a4, 0, NOTE.g4, NOTE.a4, NOTE.e4, 0,
-  NOTE.d4, 0, NOTE.c4, NOTE.e4, NOTE.a3, 0, 0, 0,
-];
+function currentTheme() {
+  return THEMES[themeIndex] || THEMES[0];
+}
 
-const HATS = [
-  1, 0, 1, 0, 1, 0, 1, 1,
-  1, 0, 1, 0, 1, 0, 1, 1,
-  1, 0, 1, 0, 1, 0, 1, 1,
-  1, 0, 1, 1, 1, 0, 1, 1,
-];
+function stepSec() {
+  return 60 / currentTheme().bpm / 2;
+}
 
 function playMusicTone(freq, when, duration, type, gain) {
   if (!freq || !musicBus || !ctx || muted || !isRunning()) return;
@@ -331,11 +465,12 @@ function playMusicTone(freq, when, duration, type, gain) {
 }
 
 function scheduleStep(when) {
+  const theme = currentTheme();
   const i = musicStep % 32;
-  const bass = BASS[i];
-  const arp = ARPS[i];
-  const lead = LEAD[i];
-  const hat = HATS[i];
+  const bass = theme.bass[i];
+  const arp = theme.arps[i];
+  const lead = theme.lead[i];
+  const hat = theme.hats[i];
 
   if (bass) playMusicTone(bass, when, 0.18, "triangle", 0.16);
   if (arp) playMusicTone(arp, when, 0.1, "square", 0.07);
@@ -343,7 +478,7 @@ function scheduleStep(when) {
   if (hat && noiseBuffer && musicBus && ctx) {
     const src = ctx.createBufferSource();
     src.buffer = noiseBuffer;
-    src.playbackRate.value = 2.4;
+    src.playbackRate.value = theme.hatRate ?? 2.4;
     const filter = ctx.createBiquadFilter();
     filter.type = "highpass";
     filter.frequency.value = 5000;
@@ -367,9 +502,10 @@ function schedulerTick() {
   }
 
   const horizon = ctx.currentTime + LOOKAHEAD_SEC;
+  const step = stepSec();
   while (nextNoteTime < horizon) {
     scheduleStep(nextNoteTime);
-    nextNoteTime += STEP_SEC;
+    nextNoteTime += step;
   }
 }
 
@@ -388,7 +524,6 @@ function ensureMusicLoop(resetPhrase = false) {
     musicStep = 0;
     nextNoteTime = ctx.currentTime + 0.05;
   } else if (nextNoteTime < ctx.currentTime) {
-    // Resume after suspend without restarting the phrase mid-bar harshly.
     nextNoteTime = ctx.currentTime + 0.05;
   }
   setMusicBusGain(MUSIC_GAIN);
@@ -397,11 +532,22 @@ function ensureMusicLoop(resetPhrase = false) {
   musicTimer = window.setInterval(schedulerTick, SCHEDULE_MS);
 }
 
-export function startMusic() {
+/**
+ * @param {number} [index] Sector theme index (matches LEVELS index).
+ */
+export function startMusic(index = 0) {
+  const next = Math.max(0, Math.min(THEMES.length - 1, Math.floor(Number(index) || 0)));
+  const themeChanged = next !== themeIndex;
+  themeIndex = next;
   musicWanted = true;
-  musicStep = 0;
-  nextNoteTime = 0;
-  ensureMusicLoop(true);
+  if (themeChanged || !musicTimer) {
+    pauseMusicClock();
+    musicStep = 0;
+    nextNoteTime = 0;
+    ensureMusicLoop(true);
+  } else {
+    ensureMusicLoop(false);
+  }
 }
 
 export function stopMusic() {
