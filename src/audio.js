@@ -226,6 +226,11 @@ export const sfx = {
     tone(880, 0.05, "square", 0.08);
     tone(1320, 0.1, "square", 0.06, 1760, 0.05);
   },
+  extraLife() {
+    tone(660, 0.08, "square", 0.09);
+    tone(880, 0.08, "square", 0.09, null, 0.07);
+    tone(1320, 0.16, "triangle", 0.1, null, 0.14);
+  },
   stomp() {
     noiseBurst(0.08, 0.1, 600);
     tone(160, 0.12, "sawtooth", 0.09, 60);

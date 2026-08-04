@@ -42,7 +42,17 @@ import {
   shake,
   state,
 } from "./state.js";
-import { setOverlay, updateHud, presentRunEnd } from "./ui.js";
+import { announce, setOverlay, updateHud, presentRunEnd } from "./ui.js";
+
+function awardScore(delta) {
+  const gained = addScore(delta);
+  if (gained > 0) {
+    const label = gained === 1 ? "EXTRA LIFE" : `${gained} EXTRA LIVES`;
+    announce(`${label}. Lives ${lives}.`);
+    sfx.extraLife();
+  }
+  return gained;
+}
 
 export function setCheckpoint(x, y) {
   checkpoint.x = x;
@@ -260,7 +270,7 @@ export function updateEnemies(dt) {
       player.vy = STOMP_BOUNCE;
       player.jumpCutExempt = true;
       player.invuln = Math.max(player.invuln, INVULN_STOMP);
-      addScore(SCORE_STOMP);
+      awardScore(SCORE_STOMP);
       addRunStomp(1);
       setShake(0.15);
       updateHud();
@@ -286,7 +296,7 @@ export function updateCoins(dt) {
     };
     if (aabb(player, box)) {
       c.taken = true;
-      addScore(SCORE_PACK);
+      awardScore(SCORE_PACK);
       addRunCoin(1);
       updateHud();
       sfx.coin();

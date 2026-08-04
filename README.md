@@ -25,6 +25,7 @@ App version is `package.json` / `APP_VERSION` in `src/constants.js` (keep them m
 - Visuals: per-sector backdrop (palette/style from `sectorTheme.js`); sky/particle pulse follows the audio beat while music plays
 - High scores: local top-10 board on full clear or game over (initials saved in this browser); end-run breakdown; clear board
 - Scoring: data packs **+10** DATA, stomps **+20** DATA (HUD shows DATA / PACKS / KILLS). Weighted scoring uses a fresh local board key.
+- Extra lives: **+1** life every **500** DATA (soft cap **9**)
 
 ## Sectors
 

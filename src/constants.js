@@ -1,5 +1,5 @@
 /** Keep in sync with package.json "version" */
-export const APP_VERSION = "1.5.3";
+export const APP_VERSION = "1.5.4";
 
 export const LOGICAL_W = 960;
 export const LOGICAL_H = 540;
@@ -9,6 +9,10 @@ export const MAX_FALL = 1400;
 export const JUMP_VELOCITY = -980;
 export const STOMP_BOUNCE = -620;
 export const START_LIVES = 3;
+/** Soft cap for lives (including extras from score thresholds) */
+export const MAX_LIVES = 9;
+/** Award +1 life each time DATA crosses this interval (500, 1000, …) */
+export const EXTRA_LIFE_EVERY = 500;
 export const COYOTE_TIME = 0.1;
 export const JUMP_BUFFER = 0.12;
 export const INVULN_HIT = 1.2;

@@ -170,7 +170,7 @@ export function initGame(touchEls) {
   setOverlay(
     true,
     "NEON RUNNER",
-    "Five sectors. Jack data packs (+10). Stomp drones (+20). Both raise DATA.",
+    "Five sectors. Packs +10, stomps +20. Extra life every 500 DATA (max 9).",
     "JACK IN",
     "SECTOR 2084"
   );

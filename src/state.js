@@ -1,9 +1,11 @@
-import { TILE, START_LIVES } from "./constants.js";
+import { EXTRA_LIFE_EVERY, MAX_LIVES, TILE, START_LIVES } from "./constants.js";
 
 /** @type {'title' | 'playing' | 'cleared' | 'dead' | 'won'} */
 export let state = "title";
 export let score = 0;
 export let lives = START_LIVES;
+/** Next DATA total that awards an extra life */
+export let nextExtraLifeAt = EXTRA_LIFE_EVERY;
 export let time = 0;
 export let shake = 0;
 export let shakeX = 0;
@@ -61,6 +63,7 @@ export function resetRunStats() {
   runCoins = 0;
   runStomps = 0;
   runElapsed = 0;
+  nextExtraLifeAt = EXTRA_LIFE_EVERY;
 }
 
 export function addRunCoin(n = 1) {
@@ -102,8 +105,21 @@ export function setScore(next) {
   score = next;
 }
 
+/**
+ * Add DATA and grant extra lives for each EXTRA_LIFE_EVERY threshold crossed.
+ * @returns {number} Lives granted this call (0 if none / at soft cap).
+ */
 export function addScore(delta) {
   score += delta;
+  let gained = 0;
+  while (score >= nextExtraLifeAt) {
+    if (lives < MAX_LIVES) {
+      lives += 1;
+      gained += 1;
+    }
+    nextExtraLifeAt += EXTRA_LIFE_EVERY;
+  }
+  return gained;
 }
 
 export function setLives(next) {
