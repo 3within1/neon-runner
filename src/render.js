@@ -335,35 +335,86 @@ function drawExit() {
 
 function drawEnemy(e) {
   if (!e.alive) return;
-  const bob = reduceMotion ? 0 : Math.sin(e.bob) * 3;
-  const s = worldToScreen(e.x, e.y + bob);
+  const bob = reduceMotion ? 0 : Math.sin(e.bob) * e.bobAmp;
+  const drawX = e.axis === "y" ? e.x + bob : e.x;
+  const drawY = e.axis === "y" ? e.y : e.y + bob;
+  const s = worldToScreen(drawX, drawY);
   if (s.x + e.w < -20 || s.x > W + 20) return;
+
+  const facing =
+    e.axis === "y" ? Math.sign(e.vy) || 1 : Math.sign(e.vx) || 1;
+  const damaged = e.hp < e.maxHp;
+  const flashing = e.flash > 0 && Math.floor(e.flash * 24) % 2 === 0;
+
   ctx.save();
   ctx.translate(s.x + e.w / 2, s.y + e.h / 2);
+  if (flashing) ctx.globalAlpha = 0.45;
 
-  ctx.shadowColor = COLORS.magenta;
-  ctx.shadowBlur = reduceMotion ? 0 : 14;
-  ctx.fillStyle = "#2a0830";
-  ctx.strokeStyle = COLORS.magenta;
-  ctx.lineWidth = 2;
-  roundRect(-e.w / 2, -e.h / 2, e.w, e.h, 8);
-  ctx.fill();
-  ctx.stroke();
+  ctx.shadowColor = e.stroke;
+  ctx.shadowBlur = reduceMotion ? 0 : e.type === "swarm" ? 10 : 14;
+  ctx.fillStyle = flashing ? "#ffffff" : e.fill;
+  ctx.strokeStyle = damaged ? COLORS.amber : e.stroke;
+  ctx.lineWidth = e.type === "armored" ? 3 : e.type === "needle" ? 1.5 : 2;
 
-  ctx.shadowColor = COLORS.cyan;
-  ctx.fillStyle = COLORS.cyan;
+  if (e.type === "needle") {
+    // Tall diamond silhouette
+    ctx.beginPath();
+    ctx.moveTo(0, -e.h / 2);
+    ctx.lineTo(e.w / 2, 0);
+    ctx.lineTo(0, e.h / 2);
+    ctx.lineTo(-e.w / 2, 0);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+  } else {
+    roundRect(-e.w / 2, -e.h / 2, e.w, e.h, e.radius);
+    ctx.fill();
+    ctx.stroke();
+  }
+
+  if (e.type === "armored") {
+    ctx.strokeStyle = damaged ? COLORS.magenta : COLORS.amber;
+    ctx.lineWidth = 2;
+    ctx.strokeRect(-e.w / 2 + 6, -e.h / 2 + 6, e.w - 12, e.h - 12);
+    if (damaged) {
+      ctx.beginPath();
+      ctx.moveTo(-6, -8);
+      ctx.lineTo(4, 6);
+      ctx.strokeStyle = COLORS.magenta;
+      ctx.stroke();
+    }
+  }
+
+  ctx.shadowColor = e.eye;
+  ctx.fillStyle = e.eye;
+  const eyeW = e.type === "swarm" ? 7 : e.type === "needle" ? 6 : 10;
+  const eyeH = e.type === "climber" ? 7 : 5;
   ctx.beginPath();
-  ctx.ellipse(0, -2, 10, 5, 0, 0, Math.PI * 2);
+  ctx.ellipse(0, e.type === "climber" ? -4 : -2, eyeW, eyeH, 0, 0, Math.PI * 2);
   ctx.fill();
   ctx.fillStyle = "#041018";
   ctx.beginPath();
-  ctx.arc(Math.sign(e.vx) * 3, -2, 2.5, 0, Math.PI * 2);
+  const pupil = e.axis === "y" ? 0 : facing * 3;
+  ctx.arc(pupil, e.type === "climber" ? -4 : -2, e.type === "swarm" ? 1.8 : 2.5, 0, Math.PI * 2);
   ctx.fill();
 
-  ctx.fillStyle = COLORS.amber;
-  ctx.globalAlpha = 0.7 + Math.sin(e.bob * 2) * 0.3;
-  ctx.fillRect(-8, e.h / 2 - 2, 5, 8 + Math.sin(e.bob * 3) * 3);
-  ctx.fillRect(3, e.h / 2 - 2, 5, 8 + Math.cos(e.bob * 3) * 3);
+  ctx.fillStyle = e.thruster;
+  ctx.globalAlpha = flashing ? 0.3 : 0.7 + Math.sin(e.bob * 2) * 0.3;
+  if (e.axis === "y") {
+    // Side thrusters for climbers
+    const kick = 6 + Math.sin(e.bob * 3) * 2;
+    ctx.fillRect(-e.w / 2 - 2, -4, kick, 4);
+    ctx.fillRect(e.w / 2 - kick + 2, 2, kick, 4);
+  } else if (e.type === "needle") {
+    ctx.fillRect(-3, e.h / 2 - 2, 6, 10 + Math.sin(e.bob * 3) * 3);
+  } else if (e.type === "swarm") {
+    ctx.fillRect(-6, e.h / 2 - 2, 4, 6 + Math.sin(e.bob * 3) * 2);
+    ctx.fillRect(2, e.h / 2 - 2, 4, 6 + Math.cos(e.bob * 3) * 2);
+  } else {
+    ctx.fillRect(-8, e.h / 2 - 2, 5, 8 + Math.sin(e.bob * 3) * 3);
+    ctx.fillRect(3, e.h / 2 - 2, 5, 8 + Math.cos(e.bob * 3) * 3);
+  }
+
   ctx.restore();
   ctx.shadowBlur = 0;
   ctx.globalAlpha = 1;

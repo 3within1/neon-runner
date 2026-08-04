@@ -1,4 +1,4 @@
-import { TILE } from "./constants.js";
+import { COLORS, SCORE_ARMORED, SCORE_STOMP, TILE } from "./constants.js";
 import { rect } from "./physics.js";
 import { level, levelIndex } from "./state.js";
 
@@ -6,8 +6,89 @@ import { level, levelIndex } from "./state.js";
  * Declarative level defs (tile units).
  * platforms/hazards: [tx, ty, tw, th]
  * coins: [tx, ty]
- * enemies: [tx, ty, minTx, maxTx]
+ * enemies: [tx, ty, minA, maxA] or [tx, ty, minA, maxA, type]
+ *   type defaults to "drone". For axis "x" types, minA/maxA are tile X bounds;
+ *   for "climber" (axis "y"), minA/maxA are tile Y bounds.
  */
+
+/** Per-type stats used by spawnEnemy / simulation / render. */
+export const ENEMY_TYPES = {
+  drone: {
+    w: 36,
+    h: 28,
+    speed: 80,
+    hp: 1,
+    score: SCORE_STOMP,
+    axis: "x",
+    bobAmp: 3,
+    bobSpeed: 6,
+    fill: "#2a0830",
+    stroke: COLORS.magenta,
+    eye: COLORS.cyan,
+    thruster: COLORS.amber,
+    radius: 8,
+  },
+  climber: {
+    w: 28,
+    h: 36,
+    speed: 70,
+    hp: 1,
+    score: SCORE_STOMP,
+    axis: "y",
+    bobAmp: 2,
+    bobSpeed: 5,
+    fill: "#081828",
+    stroke: COLORS.cyan,
+    eye: COLORS.lime,
+    thruster: COLORS.cyan,
+    radius: 6,
+  },
+  needle: {
+    w: 22,
+    h: 34,
+    speed: 130,
+    hp: 1,
+    score: SCORE_STOMP,
+    axis: "x",
+    bobAmp: 4,
+    bobSpeed: 8,
+    fill: "#102018",
+    stroke: COLORS.lime,
+    eye: COLORS.cyan,
+    thruster: COLORS.lime,
+    radius: 4,
+  },
+  swarm: {
+    w: 24,
+    h: 20,
+    speed: 110,
+    hp: 1,
+    score: SCORE_STOMP,
+    axis: "x",
+    bobAmp: 2,
+    bobSpeed: 10,
+    fill: "#300820",
+    stroke: COLORS.magenta,
+    eye: COLORS.amber,
+    thruster: COLORS.magenta,
+    radius: 6,
+  },
+  armored: {
+    w: 44,
+    h: 34,
+    speed: 55,
+    hp: 2,
+    score: SCORE_ARMORED,
+    axis: "x",
+    bobAmp: 1.5,
+    bobSpeed: 4,
+    fill: "#1a1420",
+    stroke: COLORS.amber,
+    eye: COLORS.magenta,
+    thruster: COLORS.amber,
+    radius: 6,
+  },
+};
 export const LEVELS = [
   {
     id: "grid-sprint",
@@ -62,12 +143,12 @@ export const LEVELS = [
       [67, 9],
     ],
     enemies: [
-      [8, 9, 6, 12],
-      [18, 9, 16, 24],
-      [32, 5, 30, 34],
-      [46, 9, 42, 54],
-      [52, 4, 50, 54],
-      [66, 6, 64, 68],
+      [8, 9, 6, 12, "drone"],
+      [18, 9, 16, 24, "drone"],
+      [32, 5, 30, 34, "drone"],
+      [46, 9, 42, 54, "drone"],
+      [52, 4, 50, 54, "drone"],
+      [66, 6, 64, 68, "drone"],
     ],
   },
   {
@@ -129,12 +210,13 @@ export const LEVELS = [
       [38, 11],
     ],
     enemies: [
-      [5, 11, 4, 9],
-      [25, 11, 22, 30],
-      [38, 11, 34, 44],
-      [23, 4, 22, 25],
-      [41, 3, 40, 43],
-      [55, 1, 54, 57],
+      [5, 11, 4, 9, "drone"],
+      [25, 11, 22, 30, "drone"],
+      [38, 11, 34, 44, "drone"],
+      // vertical shafts (minA/maxA = tile Y)
+      [8, 7, 3, 11, "climber"],
+      [23, 5, 3, 11, "climber"],
+      [55, 4, 1, 8, "climber"],
     ],
   },
   {
@@ -199,12 +281,12 @@ export const LEVELS = [
       [43, 9],
     ],
     enemies: [
-      [11, 9, 9, 13],
-      [25, 9, 23, 28],
-      [43, 9, 40, 46],
-      [20, 3, 19, 21],
-      [34, 4, 33, 35],
-      [53, 2, 52, 55],
+      [11, 9, 9, 13, "needle"],
+      [25, 9, 23, 28, "needle"],
+      [43, 9, 40, 46, "needle"],
+      [20, 3, 19, 21, "needle"],
+      [34, 4, 33, 35, "needle"],
+      [53, 2, 52, 55, "needle"],
     ],
   },
   {
@@ -257,18 +339,18 @@ export const LEVELS = [
       [70, 9],
     ],
     enemies: [
-      [4, 9, 4, 14],
-      [10, 9, 5, 15],
-      [22, 9, 18, 30],
-      [26, 9, 20, 32],
-      [40, 9, 34, 48],
-      [44, 9, 36, 50],
-      [56, 9, 52, 62],
-      [16, 4, 14, 18],
-      [30, 3, 28, 32],
-      [43, 2, 42, 46],
-      [56, 4, 54, 59],
-      [69, 5, 68, 71],
+      [4, 9, 4, 14, "swarm"],
+      [10, 9, 5, 15, "swarm"],
+      [22, 9, 18, 30, "swarm"],
+      [26, 9, 20, 32, "swarm"],
+      [40, 9, 34, 48, "swarm"],
+      [44, 9, 36, 50, "swarm"],
+      [56, 9, 52, 62, "swarm"],
+      [16, 4, 14, 18, "swarm"],
+      [30, 3, 28, 32, "swarm"],
+      [43, 2, 42, 46, "swarm"],
+      [56, 4, 54, 59, "drone"],
+      [69, 5, 68, 71, "drone"],
     ],
   },
   {
@@ -353,22 +435,22 @@ export const LEVELS = [
       [78, 11],
     ],
     enemies: [
-      [4, 11, 4, 7],
-      [14, 11, 11, 16],
-      [23, 11, 20, 26],
-      [34, 11, 30, 38],
-      [46, 11, 42, 47],
-      [56, 11, 51, 61],
-      [70, 11, 65, 71],
-      [80, 11, 75, 83],
-      [12, 4, 11, 14],
-      [21, 3, 20, 23],
-      [30, 2, 29, 32],
-      [47, 2, 46, 49],
-      [55, 3, 54, 57],
-      [73, 3, 72, 75],
-      [81, 2, 80, 83],
-      [89, 2, 88, 91],
+      [4, 11, 4, 7, "drone"],
+      [14, 11, 11, 16, "swarm"],
+      [23, 11, 20, 26, "drone"],
+      [34, 11, 30, 38, "armored"],
+      [46, 11, 42, 47, "needle"],
+      [56, 11, 51, 61, "swarm"],
+      [70, 11, 65, 71, "armored"],
+      [80, 11, 75, 83, "drone"],
+      [12, 4, 11, 14, "needle"],
+      [21, 3, 2, 7, "climber"],
+      [30, 2, 29, 32, "needle"],
+      [47, 2, 46, 49, "swarm"],
+      [55, 3, 2, 8, "climber"],
+      [73, 3, 72, 75, "needle"],
+      [81, 2, 80, 83, "swarm"],
+      [89, 2, 88, 91, "armored"],
     ],
   },
 ];
@@ -397,28 +479,68 @@ function addHazard(tx, ty, tw, th) {
   level.hazards.push(hit);
 }
 
-function spawnEnemy(tx, ty, minTx, maxTx) {
-  const w = 36;
-  const minX = minTx * TILE;
-  const maxX = maxTx * TILE;
-  if (maxX - minX < w) {
+function spawnEnemy(tx, ty, minA, maxA, typeName = "drone") {
+  const def = ENEMY_TYPES[typeName];
+  if (!def) {
+    throw new Error(`Unknown enemy type "${typeName}" in ${level.name || "level"}`);
+  }
+
+  const min = minA * TILE;
+  const max = maxA * TILE;
+  const size = def.axis === "y" ? def.h : def.w;
+  if (max - min < size) {
     throw new Error(
-      `Enemy patrol too narrow in ${level.name || "level"}: [${minTx}, ${maxTx}]`
+      `Enemy patrol too narrow in ${level.name || "level"} (${typeName}): [${minA}, ${maxA}]`
     );
   }
-  const x = tx * TILE;
-  const clampedX = Math.max(minX, Math.min(maxX - w, x));
-  level.enemies.push({
-    x: clampedX,
+
+  const enemy = {
+    type: typeName,
+    axis: def.axis,
+    x: tx * TILE,
     y: ty * TILE,
-    w,
-    h: 28,
-    vx: 80,
-    minX,
-    maxX,
+    w: def.w,
+    h: def.h,
+    vx: 0,
+    vy: 0,
+    minX: def.axis === "x" ? min : tx * TILE,
+    maxX: def.axis === "x" ? max : tx * TILE + def.w,
+    minY: def.axis === "y" ? min : ty * TILE,
+    maxY: def.axis === "y" ? max : ty * TILE + def.h,
+    speed: def.speed,
+    hp: def.hp,
+    maxHp: def.hp,
+    score: def.score,
+    bobAmp: def.bobAmp,
+    bobSpeed: def.bobSpeed,
+    fill: def.fill,
+    stroke: def.stroke,
+    eye: def.eye,
+    thruster: def.thruster,
+    radius: def.radius,
     alive: true,
-    bob: (tx * 0.7) % (Math.PI * 2),
-  });
+    flash: 0,
+    bob: (tx * 0.7 + ty * 0.3) % (Math.PI * 2),
+  };
+
+  if (def.axis === "y") {
+    enemy.y = Math.max(enemy.minY, Math.min(enemy.maxY - enemy.h, enemy.y));
+    enemy.vy = def.speed;
+  } else {
+    enemy.x = Math.max(enemy.minX, Math.min(enemy.maxX - enemy.w, enemy.x));
+    enemy.vx = def.speed;
+  }
+
+  level.enemies.push(enemy);
+}
+
+/** World-space AABB including bob offset (shared by combat + draw). */
+export function enemyBody(e) {
+  const bob = Math.sin(e.bob) * e.bobAmp;
+  if (e.axis === "y") {
+    return { x: e.x + bob, y: e.y, w: e.w, h: e.h };
+  }
+  return { x: e.x, y: e.y + bob, w: e.w, h: e.h };
 }
 
 function assertExitGrounded() {

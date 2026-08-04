@@ -9,14 +9,13 @@ import {
   JUMP_VELOCITY,
   MAX_FALL,
   SCORE_PACK,
-  SCORE_STOMP,
   START_LIVES,
   STOMP_BOUNCE,
   STOMP_SLACK,
 } from "./constants.js";
 import { W, H } from "./dom.js";
 import { input } from "./input.js";
-import { buildLevel, getLevelCount, getLevelDef } from "./level.js";
+import { buildLevel, enemyBody, getLevelCount, getLevelDef } from "./level.js";
 import { aabb, resolveAxis, segmentHitsRect } from "./physics.js";
 import { sfx, stopMusic } from "./audio.js";
 import {
@@ -66,8 +65,7 @@ function isSafeStanding(px, py) {
   }
   for (const e of level.enemies) {
     if (!e.alive) continue;
-    const body = { x: e.x, y: e.y + Math.sin(e.bob) * 3, w: e.w, h: e.h };
-    if (aabb(feet, body)) return false;
+    if (aabb(feet, enemyBody(e))) return false;
   }
   return true;
 }
@@ -246,17 +244,31 @@ export function updateEnemies(dt) {
   for (const e of level.enemies) {
     if (state !== "playing") return;
     if (!e.alive) continue;
-    e.bob += dt * 6;
-    e.x += e.vx * dt;
-    if (e.x < e.minX) {
-      e.x = e.minX;
-      e.vx = Math.abs(e.vx);
-    } else if (e.x + e.w > e.maxX) {
-      e.x = e.maxX - e.w;
-      e.vx = -Math.abs(e.vx);
+
+    e.bob += dt * e.bobSpeed;
+    if (e.flash > 0) e.flash = Math.max(0, e.flash - dt);
+
+    if (e.axis === "y") {
+      e.y += e.vy * dt;
+      if (e.y < e.minY) {
+        e.y = e.minY;
+        e.vy = Math.abs(e.speed);
+      } else if (e.y + e.h > e.maxY) {
+        e.y = e.maxY - e.h;
+        e.vy = -Math.abs(e.speed);
+      }
+    } else {
+      e.x += e.vx * dt;
+      if (e.x < e.minX) {
+        e.x = e.minX;
+        e.vx = Math.abs(e.speed);
+      } else if (e.x + e.w > e.maxX) {
+        e.x = e.maxX - e.w;
+        e.vx = -Math.abs(e.speed);
+      }
     }
 
-    const body = { x: e.x, y: e.y + Math.sin(e.bob) * 3, w: e.w, h: e.h };
+    const body = enemyBody(e);
     if (!aabb(player, body)) continue;
 
     const prevBottom = player.prevY + player.h;
@@ -266,15 +278,22 @@ export function updateEnemies(dt) {
       player.y + player.h >= body.y;
 
     if (stomping) {
-      e.alive = false;
       player.vy = STOMP_BOUNCE;
       player.jumpCutExempt = true;
       player.invuln = Math.max(player.invuln, INVULN_STOMP);
-      awardScore(SCORE_STOMP);
-      addRunStomp(1);
-      setShake(0.15);
-      updateHud();
-      sfx.stomp();
+      e.hp -= 1;
+      if (e.hp <= 0) {
+        e.alive = false;
+        awardScore(e.score);
+        addRunStomp(1);
+        setShake(0.15);
+        updateHud();
+        sfx.stomp();
+      } else {
+        e.flash = 0.35;
+        setShake(0.08);
+        sfx.stomp();
+      }
       return;
     }
 
