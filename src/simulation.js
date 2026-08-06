@@ -420,14 +420,9 @@ export function updateExit() {
       announce("EXIT LOCKED. DEFEAT CYBER REX.");
       sfx.ui();
     }
-    // Soft push so the runner cannot camp inside the locked gate.
-    if (player.x + player.w * 0.5 < level.exit.x + level.exit.w * 0.5) {
-      player.x = level.exit.x - player.w - 2;
-      player.vx = -180;
-    } else {
-      player.x = level.exit.x + level.exit.w + 2;
-      player.vx = 180;
-    }
+    // Nudge left of the gate — exit sits at the arena's right edge.
+    player.x = Math.min(player.x, level.exit.x - player.w - 2);
+    if (player.vx > 0) player.vx = -120;
     return;
   }
 

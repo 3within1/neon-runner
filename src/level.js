@@ -414,8 +414,8 @@ export const LEVELS = [
       [42, 12, 5, 2],
       [51, 12, 10, 2],
       [65, 12, 6, 2],
-      [74, 12, 4, 2],
-      // cyber rex boss arena
+      // approach into cyber rex boss arena (flush with arena floor)
+      [74, 12, 6, 2],
       [80, 12, 32, 2],
       // early climb
       [3, 9, 3, 1],
