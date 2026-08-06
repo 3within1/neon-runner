@@ -29,7 +29,8 @@ App version is `package.json` / `APP_VERSION` in `src/constants.js` (keep them m
 
 ## Sectors
 
-1. **2084 GRID SPRINT** — classic gaps, drones, and a stomping cyber rex  
+1. **2084 GRID SPRINT** — classic gaps and drones  
+
 2. **2091 ASCENDER** — vertical climb; climber drones on shafts  
 3. **2100 NEEDLE PATH** — thin platforms, dense spikes, fast needle drones  
 4. **2112 SWARM GRID** — dense swarm packs on patrol lanes  

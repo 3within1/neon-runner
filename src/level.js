@@ -189,8 +189,6 @@ export const LEVELS = [
       [8, 9, 6, 12, "drone"],
       [18, 9, 16, 24, "drone"],
       [32, 5, 30, 34, "drone"],
-      // cyber rex patrols the long mid runway
-      [46, 8.5, 40, 57, "rex"],
       [52, 4, 50, 54, "drone"],
       [66, 6, 64, 68, "drone"],
     ],
