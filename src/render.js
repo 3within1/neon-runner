@@ -1,6 +1,7 @@
 import { getBeatPulse } from "./audio.js";
 import { COLORS, TILE } from "./constants.js";
 import { ctx, W, H } from "./dom.js";
+import { getLivingBoss, isExitLocked } from "./level.js";
 import { mod } from "./physics.js";
 import { getSectorTheme } from "./sectorTheme.js";
 import {
@@ -319,24 +320,31 @@ function drawCoins() {
 function drawExit() {
   const e = level.exit;
   const s = worldToScreen(e.x, e.y);
+  const locked = isExitLocked();
   const pulse = reduceMotion ? 0.5 : 0.5 + Math.sin(time * 5) * 0.5;
+  const accent = locked ? COLORS.amber : COLORS.cyan;
 
   ctx.save();
-  ctx.shadowColor = COLORS.cyan;
-  ctx.shadowBlur = reduceMotion ? 0 : 20 + pulse * 20;
+  ctx.shadowColor = accent;
+  ctx.shadowBlur = reduceMotion ? 0 : locked ? 10 + pulse * 8 : 20 + pulse * 20;
   const grad = ctx.createLinearGradient(s.x, s.y, s.x + e.w, s.y + e.h);
-  grad.addColorStop(0, `rgba(53, 240, 255, ${0.2 + pulse * 0.35})`);
-  grad.addColorStop(1, `rgba(255, 43, 214, ${0.25 + pulse * 0.3})`);
+  if (locked) {
+    grad.addColorStop(0, `rgba(255, 179, 71, ${0.12 + pulse * 0.18})`);
+    grad.addColorStop(1, `rgba(255, 43, 214, ${0.14 + pulse * 0.16})`);
+  } else {
+    grad.addColorStop(0, `rgba(53, 240, 255, ${0.2 + pulse * 0.35})`);
+    grad.addColorStop(1, `rgba(255, 43, 214, ${0.25 + pulse * 0.3})`);
+  }
   ctx.fillStyle = grad;
   ctx.fillRect(s.x, s.y, e.w, e.h);
 
-  ctx.strokeStyle = COLORS.cyan;
+  ctx.strokeStyle = accent;
   ctx.lineWidth = 2;
   ctx.strokeRect(s.x + 4, s.y + 4, e.w - 8, e.h - 8);
 
-  ctx.fillStyle = COLORS.cyan;
+  ctx.fillStyle = accent;
   ctx.font = "700 10px Orbitron, sans-serif";
-  ctx.fillText("EXIT", s.x + 10, s.y - 8);
+  ctx.fillText(locked ? "LOCKED" : "EXIT", s.x + (locked ? 4 : 10), s.y - 8);
   ctx.restore();
   ctx.shadowBlur = 0;
 }
@@ -348,9 +356,9 @@ function drawRex(e) {
   const flashing = e.flash > 0 && Math.floor(e.flash * 24) % 2 === 0;
   const damaged = e.hp < e.maxHp;
   const walk = reduceMotion ? 0 : e.walk;
-  const stomp = reduceMotion ? 0 : Math.abs(Math.sin(walk)) * 5;
-  const squash = reduceMotion ? 1 : 1 + Math.sin(walk * 2) * 0.05;
-  const tilt = reduceMotion ? 0 : Math.sin(walk) * 0.06;
+  const stomp = reduceMotion ? 0 : Math.abs(Math.sin(walk)) * (e.boss ? 7 : 5);
+  const squash = reduceMotion ? 1 : 1 + Math.sin(walk * 2) * (e.charging > 0 ? 0.09 : 0.05);
+  const tilt = reduceMotion ? 0 : Math.sin(walk) * (e.charging > 0 ? 0.1 : 0.06);
   // Sprite art faces left; flip when marching right.
   const faceLeft = e.vx <= 0;
   const pulse = reduceMotion ? 0.5 : 0.55 + Math.sin(e.bob * 2) * 0.45;
@@ -363,8 +371,11 @@ function drawRex(e) {
   if (flashing) ctx.globalAlpha = 0.45;
 
   // Neon under-glow (circuits / eye)
-  ctx.shadowColor = damaged ? COLORS.amber : COLORS.magenta;
-  ctx.shadowBlur = reduceMotion ? 0 : 10 + pulse * 14;
+  ctx.shadowColor =
+    e.charging > 0 ? COLORS.cyan : damaged ? COLORS.amber : COLORS.magenta;
+  ctx.shadowBlur = reduceMotion
+    ? 0
+    : (e.boss ? 14 : 10) + pulse * (e.charging > 0 ? 22 : 14);
 
   if (rexSpriteReady) {
     ctx.drawImage(rexSprite, -e.w / 2, -e.h, e.w, e.h);
@@ -393,7 +404,7 @@ function drawRex(e) {
   }
 
   // Contact shadow under stomping feet
-  ctx.globalAlpha = 0.28 + (1 - stomp / 5) * 0.2;
+  ctx.globalAlpha = 0.28 + (1 - stomp / (e.boss ? 7 : 5)) * 0.2;
   ctx.shadowBlur = 0;
   ctx.fillStyle = "#000";
   ctx.beginPath();
@@ -405,9 +416,48 @@ function drawRex(e) {
   ctx.globalAlpha = 1;
 }
 
+function drawBossHud() {
+  const boss = getLivingBoss();
+  if (!boss || state !== "playing") return;
+  // Show once the runner is near the arena / boss has engaged.
+  if (!boss.engaged && player.x < boss.minX - TILE * 4) return;
+
+  const ratio = Math.max(0, boss.hp / boss.maxHp);
+  const barW = 360;
+  const barH = 12;
+  const x = (W - barW) / 2;
+  const y = 18;
+  const pulse = reduceMotion ? 0.5 : 0.55 + Math.sin(time * 6) * 0.45;
+
+  ctx.save();
+  ctx.fillStyle = "rgba(8, 4, 16, 0.72)";
+  ctx.fillRect(x - 10, y - 16, barW + 20, 40);
+  ctx.fillStyle = COLORS.magenta;
+  ctx.font = "700 11px Orbitron, sans-serif";
+  ctx.textAlign = "center";
+  ctx.fillText("CYBER REX", W / 2, y - 2);
+
+  ctx.fillStyle = "#1a1020";
+  ctx.fillRect(x, y + 4, barW, barH);
+  const grad = ctx.createLinearGradient(x, y, x + barW, y);
+  grad.addColorStop(0, COLORS.magenta);
+  grad.addColorStop(1, ratio < 0.35 ? COLORS.amber : COLORS.cyan);
+  ctx.fillStyle = grad;
+  ctx.fillRect(x, y + 4, barW * ratio, barH);
+  ctx.strokeStyle = `rgba(255, 43, 214, ${0.55 + pulse * 0.35})`;
+  ctx.lineWidth = 1.5;
+  ctx.strokeRect(x, y + 4, barW, barH);
+
+  ctx.fillStyle = COLORS.cyan;
+  ctx.font = "700 10px Share Tech Mono, monospace";
+  ctx.fillText(`${boss.hp}/${boss.maxHp}`, W / 2, y + 28);
+  ctx.textAlign = "left";
+  ctx.restore();
+}
+
 function drawEnemy(e) {
   if (!e.alive) return;
-  if (e.type === "rex") {
+  if (e.type === "rex" || e.type === "rexBoss") {
     drawRex(e);
     return;
   }
@@ -613,6 +663,7 @@ export function draw() {
   for (const e of level.enemies) drawEnemy(e);
   if (state === "playing") drawPlayer();
   drawParticles();
+  drawBossHud();
 
   ctx.strokeStyle = "rgba(53, 240, 255, 0.15)";
   ctx.lineWidth = 2;

@@ -258,6 +258,21 @@ export const sfx = {
     tone(110, 0.2, "sawtooth", 0.09, 440);
     noiseBurst(0.15, 0.05, 2000);
   },
+  bossRoar() {
+    noiseBurst(0.28, 0.18, 500);
+    tone(70, 0.4, "sawtooth", 0.14, 40);
+    tone(110, 0.28, "square", 0.08, 55, 0.08);
+  },
+  bossCharge() {
+    tone(140, 0.18, "sawtooth", 0.1, 60);
+    noiseBurst(0.12, 0.1, 700);
+  },
+  bossDefeat() {
+    noiseBurst(0.32, 0.18, 600);
+    tone(220, 0.16, "square", 0.1, 90);
+    tone(330, 0.16, "square", 0.09, null, 0.12);
+    tone(524, 0.28, "triangle", 0.11, null, 0.24);
+  },
 };
 
 /*
