@@ -12,10 +12,18 @@ import {
   START_LIVES,
   STOMP_BOUNCE,
   STOMP_SLACK,
+  TILE,
 } from "./constants.js";
 import { W, H } from "./dom.js";
 import { input } from "./input.js";
-import { buildLevel, enemyBody, getLevelCount, getLevelDef } from "./level.js";
+import {
+  buildLevel,
+  enemyBody,
+  getLevelCount,
+  getLevelDef,
+  getLivingBoss,
+  isExitLocked,
+} from "./level.js";
 import { aabb, resolveAxis, segmentHitsRect } from "./physics.js";
 import { sfx, stopMusic } from "./audio.js";
 import {
@@ -240,6 +248,51 @@ export function updatePlayer(dt) {
   if (player.invuln > 0) player.invuln = Math.max(0, player.invuln - dt);
 }
 
+function updateBossChase(e, dt) {
+  const playerMid = player.x + player.w * 0.5;
+  const enemyMid = e.x + e.w * 0.5;
+  const dx = playerMid - enemyMid;
+  const dist = Math.abs(dx);
+  const inArena =
+    player.x + player.w > e.minX - TILE * 2 && player.x < e.maxX + TILE * 2;
+
+  if (inArena && !e.engaged) {
+    e.engaged = true;
+    announce("CYBER REX ONLINE. STOMP IT DOWN.");
+    sfx.bossRoar();
+    setShake(0.25);
+  }
+
+  e.chargeCd = Math.max(0, e.chargeCd - dt);
+  if (e.charging > 0) {
+    e.charging = Math.max(0, e.charging - dt);
+    const dir = Math.sign(e.vx) || Math.sign(dx) || 1;
+    e.vx = dir * e.speed * 2.35;
+  } else if (inArena && dist > 18) {
+    e.vx = Math.sign(dx) * e.speed;
+    if (dist > 90 && dist < 320 && e.chargeCd <= 0) {
+      e.charging = 0.55;
+      e.chargeCd = 2.6;
+      e.vx = Math.sign(dx) * e.speed * 2.35;
+      sfx.bossCharge();
+    }
+  } else if (!inArena) {
+    // Idle patrol when the runner is still approaching.
+    if (Math.abs(e.vx) < 1) e.vx = e.speed;
+  }
+
+  e.x += e.vx * dt;
+  if (e.x < e.minX) {
+    e.x = e.minX;
+    e.vx = Math.abs(e.vx);
+    e.charging = 0;
+  } else if (e.x + e.w > e.maxX) {
+    e.x = e.maxX - e.w;
+    e.vx = -Math.abs(e.vx);
+    e.charging = 0;
+  }
+}
+
 export function updateEnemies(dt) {
   for (const e of level.enemies) {
     if (state !== "playing") return;
@@ -248,7 +301,9 @@ export function updateEnemies(dt) {
     e.bob += dt * e.bobSpeed;
     if (e.flash > 0) e.flash = Math.max(0, e.flash - dt);
 
-    if (e.axis === "y") {
+    if (e.chase) {
+      updateBossChase(e, dt);
+    } else if (e.axis === "y") {
       e.y += e.vy * dt;
       if (e.y < e.minY) {
         e.y = e.minY;
@@ -268,9 +323,10 @@ export function updateEnemies(dt) {
       }
     }
 
-    // Heavy walk cycle for stomping ground units (rex).
-    if (e.type === "rex") {
-      e.walk += dt * (4.2 + Math.abs(e.vx) * 0.035);
+    // Heavy walk cycle for stomping ground units (rex / boss).
+    if (e.type === "rex" || e.type === "rexBoss") {
+      const chargeBoost = e.charging > 0 ? 2.2 : 1;
+      e.walk += dt * (4.2 + Math.abs(e.vx) * 0.035) * chargeBoost;
     }
 
     const body = enemyBody(e);
@@ -287,16 +343,21 @@ export function updateEnemies(dt) {
       player.jumpCutExempt = true;
       player.invuln = Math.max(player.invuln, INVULN_STOMP);
       e.hp -= 1;
+      e.charging = 0;
       if (e.hp <= 0) {
         e.alive = false;
         awardScore(e.score);
         addRunStomp(1);
-        setShake(0.15);
+        setShake(e.boss ? 0.45 : 0.15);
         updateHud();
         sfx.stomp();
+        if (e.boss) {
+          sfx.bossDefeat();
+          announce("CYBER REX DOWN. EXIT ONLINE.");
+        }
       } else {
         e.flash = 0.35;
-        setShake(0.08);
+        setShake(e.boss ? 0.16 : 0.08);
         sfx.stomp();
       }
       return;
@@ -351,6 +412,19 @@ export function updateHazards() {
 export function updateExit() {
   if (state !== "playing") return;
   if (!aabb(player, level.exit)) return;
+
+  if (isExitLocked()) {
+    const boss = getLivingBoss();
+    if (boss && !boss.lockAnnounced) {
+      boss.lockAnnounced = true;
+      announce("EXIT LOCKED. DEFEAT CYBER REX.");
+      sfx.ui();
+    }
+    // Nudge left of the gate — exit sits at the arena's right edge.
+    player.x = Math.min(player.x, level.exit.x - player.w - 2);
+    if (player.vx > 0) player.vx = -120;
+    return;
+  }
 
   if (levelIndex < getLevelCount() - 1) {
     const next = getLevelDef(levelIndex + 1);
