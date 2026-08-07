@@ -258,7 +258,7 @@ function updateBossChase(e, dt) {
 
   if (inArena && !e.engaged) {
     e.engaged = true;
-    announce("CYBER REX ONLINE. STOMP IT DOWN.");
+    announce("CYBER-REX ONLINE. STOMP IT DOWN.");
     sfx.bossRoar();
     setShake(0.25);
   }
@@ -353,7 +353,7 @@ export function updateEnemies(dt) {
         sfx.stomp();
         if (e.boss) {
           sfx.bossDefeat();
-          announce("CYBER REX DOWN. EXIT ONLINE.");
+          announce("CYBER-REX DOWN. EXIT ONLINE.");
         }
       } else {
         e.flash = 0.35;
@@ -417,7 +417,7 @@ export function updateExit() {
     const boss = getLivingBoss();
     if (boss && !boss.lockAnnounced) {
       boss.lockAnnounced = true;
-      announce("EXIT LOCKED. DEFEAT CYBER REX.");
+      announce("EXIT LOCKED. DEFEAT CYBER-REX.");
       sfx.ui();
     }
     // Nudge left of the gate — exit sits at the arena's right edge.

@@ -95,7 +95,7 @@ export const ENEMY_TYPES = {
     thruster: COLORS.amber,
     radius: 6,
   },
-  /** Ground-stomping cyber T-Rex (sprite + walk cycle). */
+  /** Ground-stomping Cyber-Rex (sprite + walk cycle). */
   rex: {
     w: 96,
     h: 72,
@@ -189,8 +189,6 @@ export const LEVELS = [
       [8, 9, 6, 12, "drone"],
       [18, 9, 16, 24, "drone"],
       [32, 5, 30, 34, "drone"],
-      // cyber rex patrols the long mid runway
-      [46, 8.5, 40, 57, "rex"],
       [52, 4, 50, 54, "drone"],
       [66, 6, 64, 68, "drone"],
     ],
@@ -404,7 +402,7 @@ export const LEVELS = [
     width: 112,
     height: 14,
     spawn: [2, 10],
-    // Exit stands on the arena floor; gated until cyber rex boss falls.
+    // Exit stands on the arena floor; gated until Cyber-Rex boss falls.
     exit: [106, 10],
     platforms: [
       [0, 12, 8, 2],
@@ -414,7 +412,7 @@ export const LEVELS = [
       [42, 12, 5, 2],
       [51, 12, 10, 2],
       [65, 12, 6, 2],
-      // approach into cyber rex boss arena (flush with arena floor)
+      // approach into Cyber-Rex boss arena (flush with arena floor)
       [74, 12, 6, 2],
       [80, 12, 32, 2],
       // early climb
@@ -487,7 +485,7 @@ export const LEVELS = [
       [30, 2, 29, 32, "needle"],
       [47, 2, 46, 49, "swarm"],
       [55, 3, 2, 8, "climber"],
-      // finale boss — cyber rex owns the arena
+      // finale boss — Cyber-Rex owns the arena
       [92, 10.25, 81, 109, "rexBoss"],
     ],
   },

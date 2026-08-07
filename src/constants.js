@@ -27,9 +27,9 @@ export const SCORE_PACK = 10;
 export const SCORE_STOMP = 20;
 /** DATA awarded when an armored drone is destroyed */
 export const SCORE_ARMORED = 40;
-/** DATA awarded when a cyber rex is destroyed */
+/** DATA awarded when a Cyber-Rex is destroyed */
 export const SCORE_REX = 60;
-/** DATA awarded when the sector-5 cyber rex boss is destroyed */
+/** DATA awarded when the sector-5 Cyber-Rex boss is destroyed */
 export const SCORE_REX_BOSS = 200;
 
 /** Gameplay / entity colors (sector skies live in sectorTheme.js). */
