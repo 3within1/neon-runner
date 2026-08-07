@@ -254,7 +254,12 @@ function updateBossChase(e, dt) {
   const dx = playerMid - enemyMid;
   const dist = Math.abs(dx);
   const inArena =
-    player.x + player.w > e.minX - TILE * 2 && player.x < e.maxX + TILE * 2;
+    player.x + player.w > e.minX - TILE * 4 && player.x < e.maxX + TILE * 4;
+  const enraged = e.hp <= Math.ceil(e.maxHp * 0.5);
+  const chaseSpeed = e.speed * (enraged ? 1.35 : 1);
+  const chargeMult = enraged ? 3.4 : 2.95;
+  const chargeDur = enraged ? 0.85 : 0.7;
+  const chargeCd = enraged ? 0.95 : 1.35;
 
   if (inArena && !e.engaged) {
     e.engaged = true;
@@ -263,17 +268,25 @@ function updateBossChase(e, dt) {
     setShake(0.25);
   }
 
+  if (enraged && !e.enrageAnnounced) {
+    e.enrageAnnounced = true;
+    announce("CYBER-REX OVERCLOCKED.");
+    sfx.bossRoar();
+    setShake(0.3);
+  }
+
   e.chargeCd = Math.max(0, e.chargeCd - dt);
   if (e.charging > 0) {
     e.charging = Math.max(0, e.charging - dt);
     const dir = Math.sign(e.vx) || Math.sign(dx) || 1;
-    e.vx = dir * e.speed * 2.35;
-  } else if (inArena && dist > 18) {
-    e.vx = Math.sign(dx) * e.speed;
-    if (dist > 90 && dist < 320 && e.chargeCd <= 0) {
-      e.charging = 0.55;
-      e.chargeCd = 2.6;
-      e.vx = Math.sign(dx) * e.speed * 2.35;
+    e.vx = dir * chaseSpeed * chargeMult;
+  } else if (inArena && dist > 12) {
+    e.vx = Math.sign(dx) * chaseSpeed;
+    // Charge more often, from closer range, and across most of the arena.
+    if (dist > 40 && dist < 480 && e.chargeCd <= 0) {
+      e.charging = chargeDur;
+      e.chargeCd = chargeCd;
+      e.vx = Math.sign(dx) * chaseSpeed * chargeMult;
       sfx.bossCharge();
     }
   } else if (!inArena) {
@@ -344,6 +357,10 @@ export function updateEnemies(dt) {
       player.invuln = Math.max(player.invuln, INVULN_STOMP);
       e.hp -= 1;
       e.charging = 0;
+      if (e.boss) {
+        // Snap back onto the runner quickly after a hit.
+        e.chargeCd = Math.min(e.chargeCd, 0.35);
+      }
       if (e.hp <= 0) {
         e.alive = false;
         awardScore(e.score);

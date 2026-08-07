@@ -116,7 +116,7 @@ export const ENEMY_TYPES = {
   rexBoss: {
     w: 112,
     h: 84,
-    speed: 58,
+    speed: 88,
     hp: 8,
     score: SCORE_REX_BOSS,
     axis: "x",
@@ -564,6 +564,7 @@ function spawnEnemy(tx, ty, minA, maxA, typeName = "drone") {
     charging: 0,
     chargeCd: 0,
     engaged: false,
+    enrageAnnounced: false,
   };
 
   if (def.axis === "y") {
