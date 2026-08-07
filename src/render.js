@@ -16,7 +16,7 @@ import {
   time,
 } from "./state.js";
 
-/** Cyber rex sprite (faces left). Prefer @2x when available. */
+/** Cyber-Rex sprite (faces left). Prefer @2x when available. */
 const rexSprite = new Image();
 let rexSpriteReady = false;
 rexSprite.onload = () => {
@@ -435,7 +435,7 @@ function drawBossHud() {
   ctx.fillStyle = COLORS.magenta;
   ctx.font = "700 11px Orbitron, sans-serif";
   ctx.textAlign = "center";
-  ctx.fillText("CYBER REX", W / 2, y - 2);
+  ctx.fillText("CYBER-REX", W / 2, y - 2);
 
   ctx.fillStyle = "#1a1020";
   ctx.fillRect(x, y + 4, barW, barH);

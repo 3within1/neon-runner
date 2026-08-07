@@ -170,7 +170,7 @@ export function initGame(touchEls) {
   setOverlay(
     true,
     "NEON RUNNER",
-    "Five sectors. Finale: cyber rex boss (8 stomps, +200). Packs +10, stomps +20/+40. Extra life every 500 DATA (max 9).",
+    "Five sectors. Finale: Cyber-Rex boss (8 stomps, +200). Packs +10, stomps +20/+40. Extra life every 500 DATA (max 9).",
     "JACK IN",
     "SECTOR 2084"
   );
