@@ -95,7 +95,7 @@ export const ENEMY_TYPES = {
     thruster: COLORS.amber,
     radius: 6,
   },
-  /** Ground-stomping cyber T-Rex (sprite + walk cycle). */
+  /** Ground-stomping Cyber-Rex (sprite + walk cycle). */
   rex: {
     w: 96,
     h: 72,
