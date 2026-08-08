@@ -112,7 +112,7 @@ export const ENEMY_TYPES = {
     thruster: COLORS.cyan,
     radius: 4,
   },
-  /** Sector-5 finale boss — chases, charges, gates the exit. */
+  /** Finale boss — chases, charges, gates the arena exit. */
   rexBoss: {
     w: 112,
     h: 84,
@@ -399,11 +399,11 @@ export const LEVELS = [
     id: "blackout-run",
     sector: "2125",
     name: "BLACKOUT RUN",
-    width: 112,
+    width: 96,
     height: 14,
     spawn: [2, 10],
-    // Exit stands on the arena floor; gated until Cyber-Rex boss falls.
-    exit: [106, 10],
+    // Climb to the exit door; uplink opens into the Cyber-Rex arena.
+    exit: [92, 1],
     platforms: [
       [0, 12, 8, 2],
       [11, 12, 5, 2],
@@ -412,9 +412,8 @@ export const LEVELS = [
       [42, 12, 5, 2],
       [51, 12, 10, 2],
       [65, 12, 6, 2],
-      // approach into Cyber-Rex boss arena (flush with arena floor)
-      [74, 12, 6, 2],
-      [80, 12, 32, 2],
+      [75, 12, 8, 2],
+      [86, 12, 10, 2],
       // early climb
       [3, 9, 3, 1],
       [7, 7, 2, 1],
@@ -431,11 +430,15 @@ export const LEVELS = [
       [50, 6, 2, 1],
       [54, 4, 3, 1],
       [58, 8, 3, 1],
-      [68, 8, 3, 1],
-      // arena stomp ledges
-      [86, 8, 3, 1],
-      [94, 9, 3, 1],
-      [102, 8, 3, 1],
+      // late climb to exit door
+      [64, 5, 3, 1],
+      [68, 7, 2, 1],
+      [72, 4, 3, 1],
+      [76, 6, 3, 1],
+      [80, 3, 3, 1],
+      [84, 5, 3, 1],
+      [88, 3, 6, 1],
+      [90, 8, 3, 1],
     ],
     hazards: [
       [8.15, 11.65, 2.7, 0.35],
@@ -444,7 +447,8 @@ export const LEVELS = [
       [38.15, 11.65, 3.7, 0.35],
       [47.15, 11.65, 3.7, 0.35],
       [61.2, 11.65, 3.6, 0.35],
-      [71.2, 11.65, 2.6, 0.35],
+      [71.2, 11.65, 3.6, 0.35],
+      [83.2, 11.65, 2.6, 0.35],
     ],
     coins: [
       [4, 8],
@@ -461,16 +465,17 @@ export const LEVELS = [
       [51, 5],
       [55, 3],
       [59, 7],
-      [68, 7],
-      [76, 10],
-      [88, 7],
-      [96, 8],
-      [104, 7],
+      [65, 4],
+      [69, 6],
+      [73, 3],
+      [77, 5],
+      [81, 2],
+      [85, 4],
+      [90, 2],
       [14, 11],
       [36, 11],
       [56, 11],
-      [90, 11],
-      [100, 11],
+      [78, 11],
     ],
     enemies: [
       [4, 11, 4, 7, "drone"],
@@ -479,14 +484,49 @@ export const LEVELS = [
       [34, 11, 30, 38, "armored"],
       [46, 11, 42, 47, "needle"],
       [56, 11, 52, 60, "armored"],
-      [68, 11, 65, 71, "drone"],
+      [70, 11, 65, 71, "drone"],
+      [80, 11, 75, 83, "armored"],
       [12, 4, 11, 14, "needle"],
       [21, 3, 2, 7, "climber"],
       [30, 2, 29, 32, "needle"],
       [47, 2, 46, 49, "swarm"],
       [55, 3, 2, 8, "climber"],
+      [73, 3, 72, 75, "needle"],
+      [81, 2, 80, 83, "swarm"],
+      [89, 2, 88, 91, "armored"],
+    ],
+  },
+  {
+    id: "rex-core",
+    sector: "2126",
+    name: "REX CORE",
+    width: 40,
+    height: 14,
+    spawn: [2, 10],
+    // Exit on the arena floor; gated until Cyber-Rex falls.
+    exit: [34, 10],
+    platforms: [
+      // boss arena floor
+      [0, 12, 40, 2],
+      // stomp ledges
+      [8, 8, 3, 1],
+      [16, 9, 3, 1],
+      [24, 8, 3, 1],
+      [30, 9, 2, 1],
+    ],
+    hazards: [],
+    coins: [
+      [9, 7],
+      [17, 8],
+      [25, 7],
+      [31, 8],
+      [12, 11],
+      [20, 11],
+      [28, 11],
+    ],
+    enemies: [
       // finale boss — Cyber-Rex owns the arena
-      [92, 10.25, 81, 109, "rexBoss"],
+      [18, 10.25, 4, 33, "rexBoss"],
     ],
   },
 ];

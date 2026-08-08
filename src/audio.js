@@ -426,7 +426,7 @@ const THEMES = [
     ],
     hatRate: 2.8,
   },
-  // 4 BLACKOUT RUN — dark finale, heavier low end
+  // 4 BLACKOUT RUN — dark gauntlet, heavier low end
   {
     bass: [
       NOTE.a2, 0, NOTE.a2, NOTE.a2, 0, NOTE.e3, NOTE.a2, 0,
@@ -453,6 +453,34 @@ const THEMES = [
       1, 1, 0, 1, 1, 0, 1, 1,
     ],
     hatRate: 2.0,
+  },
+  // 5 REX CORE — boss arena stomp pulse
+  {
+    bass: [
+      NOTE.a2, NOTE.a2, 0, NOTE.a2, NOTE.e3, NOTE.a2, 0, NOTE.e3,
+      NOTE.a2, NOTE.a2, 0, NOTE.g3, NOTE.e3, NOTE.a2, NOTE.e3, 0,
+      NOTE.f3, NOTE.f3, 0, NOTE.f3, NOTE.c3, NOTE.f3, 0, NOTE.c3,
+      NOTE.e3, NOTE.e3, 0, NOTE.ds3, NOTE.e3, NOTE.b2, NOTE.e3, 0,
+    ],
+    arps: [
+      NOTE.a3, NOTE.e4, 0, NOTE.a4, NOTE.e4, 0, NOTE.c5, NOTE.e4,
+      NOTE.g3, NOTE.e4, 0, NOTE.g4, NOTE.e4, 0, NOTE.b4, NOTE.e4,
+      NOTE.f3, NOTE.c4, 0, NOTE.f4, NOTE.c4, 0, NOTE.a4, NOTE.c4,
+      NOTE.e3, NOTE.b3, 0, NOTE.e4, NOTE.gs4, 0, NOTE.b4, NOTE.e4,
+    ],
+    lead: [
+      NOTE.a4, NOTE.e4, 0, NOTE.c5, NOTE.a4, 0, NOTE.e5, 0,
+      NOTE.b4, 0, NOTE.g4, NOTE.e4, 0, NOTE.g4, NOTE.b4, 0,
+      NOTE.a4, NOTE.f4, NOTE.c5, 0, NOTE.a4, 0, NOTE.f4, 0,
+      NOTE.gs4, NOTE.e4, NOTE.b4, 0, NOTE.e5, 0, 0, NOTE.b4,
+    ],
+    hats: [
+      1, 1, 0, 1, 1, 0, 1, 1,
+      1, 1, 0, 1, 1, 1, 0, 1,
+      1, 1, 0, 1, 1, 0, 1, 1,
+      1, 0, 1, 1, 1, 0, 1, 1,
+    ],
+    hatRate: 2.6,
   },
 ];
 
