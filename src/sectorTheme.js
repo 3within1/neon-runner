@@ -98,7 +98,7 @@ export const SECTOR_THEMES = [
     particle: "rgba(255, 43, 214, 0.22)",
     style: "swarm",
   },
-  // 4 — BLACKOUT RUN: dark finale @ 120
+  // 4 — BLACKOUT RUN: dark gauntlet @ 120
   {
     id: "blackout-run",
     name: "BLACKOUT RUN",
@@ -114,6 +114,24 @@ export const SECTOR_THEMES = [
     grid: "rgba(255, 120, 40, 0.05)",
     accent: "rgba(255, 100, 40, 0.14)",
     particle: "rgba(255, 160, 60, 0.16)",
+    style: "blackout",
+  },
+  // 5 — REX CORE: boss arena, hotter / denser @ 132
+  {
+    id: "rex-core",
+    name: "REX CORE",
+    bpm: 132,
+    density: 0.55,
+    bgTop: "#10040a",
+    bgBot: "#030102",
+    skyA: "rgba(255, 60, 80, 0.14)",
+    skyB: "rgba(255, 140, 40, 0.1)",
+    buildingA: "rgba(60, 20, 30, 0.6)",
+    buildingB: "rgba(28, 10, 18, 0.75)",
+    window: "rgba(255, 80, 60, 0.22)",
+    grid: "rgba(255, 60, 80, 0.08)",
+    accent: "rgba(255, 43, 214, 0.16)",
+    particle: "rgba(255, 100, 80, 0.2)",
     style: "blackout",
   },
 ];
