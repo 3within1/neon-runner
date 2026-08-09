@@ -41,10 +41,10 @@ Served over `http://127.0.0.1` / HTTPS, the app registers a service worker (`sw.
 
 1. **2084 GRID SPRINT** — classic gaps, optional high route, collapse pads  
 2. **2091 ASCENDER** — vertical climb; **Tower Sentinel** mini-boss gates the exit  
-3. **2100 NEEDLE PATH** — thin platforms; **air jump** online  
-4. **2112 SWARM GRID** — dense swarm packs  
+3. **2100 NEEDLE PATH** — thin platforms; **air jump** online; floor **turrets**  
+4. **2112 SWARM GRID** — dense swarm packs; **turrets** cover lanes  
 5. **2118 OVERCLOCK SPAN** — armored climb, lasers + electric floors  
-6. **2125 BLACKOUT RUN** — finale gauntlet; **dash** online; climb to the vault door  
+6. **2125 BLACKOUT RUN** — finale gauntlet; **dash** online; climb to the vault door; **turrets**  
 7. **2126 REX CORE** — Cyber-Rex boss arena with armor-break / slam / overclock phases (exit locked until it falls)
 
 ## Features

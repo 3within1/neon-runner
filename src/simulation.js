@@ -551,6 +551,48 @@ function registerStomp(e) {
   }
 }
 
+function updateTurret(e, dt) {
+  e.vx = 0;
+  e.vy = 0;
+  e.fireCd = Math.max(0, e.fireCd - dt);
+  const dx = player.x + player.w * 0.5 - (e.x + e.w * 0.5);
+  const dy = player.y + player.h * 0.5 - (e.y + e.h * 0.35);
+  const dist = Math.hypot(dx, dy);
+  if (dist < TILE * 14 && e.fireCd <= 0 && Math.abs(dy) < TILE * 3.5) {
+    const dir = Math.sign(dx) || 1;
+    level.projectiles.push({
+      x: e.x + e.w * 0.5 - 6,
+      y: e.y + e.h * 0.35,
+      w: 14,
+      h: 8,
+      vx: dir * 320,
+      vy: 0,
+      life: 2.2,
+    });
+    e.fireCd = 1.35;
+    sfx.turret();
+  }
+}
+
+export function updateProjectiles(dt) {
+  if (state !== "playing") return;
+  for (let i = level.projectiles.length - 1; i >= 0; i--) {
+    const p = level.projectiles[i];
+    p.life -= dt;
+    p.x += p.vx * dt;
+    p.y += p.vy * dt;
+    if (p.life <= 0) {
+      level.projectiles.splice(i, 1);
+      continue;
+    }
+    if (aabb(player, p)) {
+      level.projectiles.splice(i, 1);
+      if (!hitPlayer()) continue;
+      return;
+    }
+  }
+}
+
 export function updateEnemies(dt) {
   for (const e of level.enemies) {
     if (state !== "playing") return;
@@ -559,7 +601,9 @@ export function updateEnemies(dt) {
     e.bob += dt * e.bobSpeed;
     if (e.flash > 0) e.flash = Math.max(0, e.flash - dt);
 
-    if (e.chase) {
+    if (e.turret) {
+      updateTurret(e, dt);
+    } else if (e.chase) {
       updateBossChase(e, dt);
     } else if (e.axis === "y") {
       e.y += e.vy * dt;

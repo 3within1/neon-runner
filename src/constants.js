@@ -1,5 +1,5 @@
 /** Keep in sync with package.json "version" */
-export const APP_VERSION = "2.0.1";
+export const APP_VERSION = "2.0.2";
 
 export const LOGICAL_W = 960;
 export const LOGICAL_H = 540;
@@ -43,6 +43,8 @@ export const UNLOCK_DASH_SECTOR = 5;
 export const SCORE_PACK = 10;
 /** DATA awarded per standard enemy stomped */
 export const SCORE_STOMP = 20;
+/** DATA awarded when a turret is destroyed */
+export const SCORE_TURRET = 30;
 /** DATA awarded when an armored drone is destroyed */
 export const SCORE_ARMORED = 40;
 /** DATA awarded when a Cyber-Rex is destroyed */

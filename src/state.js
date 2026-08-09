@@ -54,6 +54,8 @@ export const level = {
   coins: [],
   enemies: [],
   checkpoints: [],
+  /** @type {{ x: number, y: number, w: number, h: number, vx: number, vy: number, life: number }[]} */
+  projectiles: [],
 };
 
 export const player = {

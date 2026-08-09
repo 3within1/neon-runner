@@ -556,10 +556,59 @@ function drawBossHud() {
   ctx.restore();
 }
 
+function drawTurret(e) {
+  const s = worldToScreen(e.x, e.y);
+  if (s.x + e.w < -20 || s.x > W + 20) return;
+  const flashing = e.flash > 0 && Math.floor(e.flash * 24) % 2 === 0;
+  const damaged = e.hp < e.maxHp;
+  ctx.save();
+  ctx.translate(s.x + e.w / 2, s.y + e.h / 2);
+  if (flashing) ctx.globalAlpha = 0.45;
+  ctx.shadowColor = e.stroke;
+  ctx.shadowBlur = reduceMotion ? 0 : 12;
+  ctx.fillStyle = flashing ? "#ffffff" : e.fill;
+  ctx.strokeStyle = damaged ? COLORS.magenta : e.stroke;
+  ctx.lineWidth = 2.5;
+  roundRect(-e.w / 2, -e.h / 2 + 4, e.w, e.h - 4, 4);
+  ctx.fill();
+  ctx.stroke();
+  ctx.fillStyle = e.eye;
+  ctx.beginPath();
+  ctx.arc(0, -2, 6, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = "#041018";
+  ctx.beginPath();
+  ctx.arc(Math.sign(player.x - e.x) * 2 || 1, -2, 2.5, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = e.thruster;
+  ctx.fillRect(-e.w / 2 - 4, 6, 8, 6);
+  ctx.fillRect(e.w / 2 - 4, 6, 8, 6);
+  ctx.restore();
+  ctx.shadowBlur = 0;
+  ctx.globalAlpha = 1;
+}
+
+function drawProjectiles() {
+  for (const p of level.projectiles) {
+    const s = worldToScreen(p.x, p.y);
+    ctx.save();
+    ctx.shadowColor = COLORS.amber;
+    ctx.shadowBlur = reduceMotion ? 0 : 10;
+    ctx.fillStyle = COLORS.amber;
+    ctx.fillRect(s.x, s.y, p.w, p.h);
+    ctx.restore();
+    ctx.shadowBlur = 0;
+  }
+}
+
 function drawEnemy(e) {
   if (!e.alive) return;
   if (e.type === "rex" || e.type === "rexBoss" || e.type === "towerSentinel") {
     drawRex(e);
+    return;
+  }
+  if (e.turret || e.type === "turret") {
+    drawTurret(e);
     return;
   }
 
@@ -811,6 +860,7 @@ export function draw() {
   drawCoins();
   drawExit();
   for (const e of level.enemies) drawEnemy(e);
+  drawProjectiles();
   drawPlayer();
   drawParticles();
   drawBossHud();

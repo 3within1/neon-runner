@@ -17,6 +17,7 @@ import {
   updateExit,
   updateHazards,
   updatePlayer,
+  updateProjectiles,
 } from "./simulation.js";
 import {
   addRunElapsed,
@@ -252,6 +253,7 @@ function frame(now) {
       updatePlayer(dt);
       if (state === "playing") updateCollapse(dt);
       if (state === "playing") updateEnemies(dt);
+      if (state === "playing") updateProjectiles(dt);
       if (state === "playing") updateCoins(dt);
       if (state === "playing") updateHazards(dt);
       if (state === "playing") updateCheckpoints();

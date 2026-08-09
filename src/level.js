@@ -5,6 +5,7 @@ import {
   SCORE_REX,
   SCORE_REX_BOSS,
   SCORE_STOMP,
+  SCORE_TURRET,
   TILE,
 } from "./constants.js";
 import { rect } from "./physics.js";
@@ -17,6 +18,7 @@ import { enemySpeedMult, level, levelIndex } from "./state.js";
  * checkpoints: [tx, ty]
  * coins: [tx, ty]
  * enemies: [tx, ty, minA, maxA] or [tx, ty, minA, maxA, type]
+ *   Turrets ignore patrol span (placed at tx, ty).
  */
 
 /** Per-type stats used by spawnEnemy / simulation / render. */
@@ -95,6 +97,23 @@ export const ENEMY_TYPES = {
     eye: COLORS.magenta,
     thruster: COLORS.amber,
     radius: 6,
+  },
+  /** Stationary gun emplacement — tracks the runner and fires bolts. */
+  turret: {
+    w: 36,
+    h: 36,
+    speed: 0,
+    hp: 2,
+    score: SCORE_TURRET,
+    axis: "x",
+    bobAmp: 0,
+    bobSpeed: 0,
+    turret: true,
+    fill: "#181028",
+    stroke: COLORS.amber,
+    eye: COLORS.lime,
+    thruster: COLORS.magenta,
+    radius: 4,
   },
   /** Ground-stomping Cyber-Rex (sprite + walk cycle). */
   rex: {
@@ -397,6 +416,9 @@ export const LEVELS = [
       [20, 3, 19, 21, "needle"],
       [34, 4, 33, 35, "needle"],
       [53, 2, 52, 55, "needle"],
+      // Stationary guns covering the floor lane
+      [17, 9, 17, 17, "turret"],
+      [41, 9, 41, 41, "turret"],
     ],
   },
   {
@@ -466,6 +488,7 @@ export const LEVELS = [
       [43, 2, 42, 46, "swarm"],
       [56, 4, 54, 59, "drone"],
       [69, 5, 68, 71, "drone"],
+      [60, 9, 60, 60, "turret"],
     ],
   },
   {
@@ -648,6 +671,7 @@ export const LEVELS = [
       [30, 2, 29, 32, "needle"],
       [47, 2, 46, 49, "swarm"],
       [55, 3, 2, 8, "climber"],
+      [76, 11, 76, 76, "turret"],
       [73, 3, 72, 75, "needle"],
       [81, 2, 80, 83, "swarm"],
       [89, 2, 88, 91, "armored"],
@@ -733,10 +757,11 @@ function spawnEnemy(tx, ty, minA, maxA, typeName = "drone") {
     throw new Error(`Unknown enemy type "${typeName}" in ${level.name || "level"}`);
   }
 
+  const isTurret = !!def.turret;
   const min = minA * TILE;
   const max = maxA * TILE;
   const size = def.axis === "y" ? def.h : def.w;
-  if (max - min < size) {
+  if (!isTurret && max - min < size) {
     throw new Error(
       `Enemy patrol too narrow in ${level.name || "level"} (${typeName}): [${minA}, ${maxA}]`
     );
@@ -750,6 +775,7 @@ function spawnEnemy(tx, ty, minA, maxA, typeName = "drone") {
     boss: !!def.boss,
     miniboss: !!def.miniboss,
     chase: !!def.chase,
+    turret: isTurret,
     x: tx * TILE,
     y: ty * TILE,
     w: def.w,
@@ -778,6 +804,7 @@ function spawnEnemy(tx, ty, minA, maxA, typeName = "drone") {
     bob: (tx * 0.7 + ty * 0.3) % (Math.PI * 2),
     charging: 0,
     chargeCd: 0,
+    fireCd: 0.4,
     engaged: false,
     enrageAnnounced: false,
     phaseAnnounced: 1,
@@ -785,7 +812,12 @@ function spawnEnemy(tx, ty, minA, maxA, typeName = "drone") {
     airborne: false,
   };
 
-  if (def.axis === "y") {
+  if (isTurret) {
+    enemy.vx = 0;
+    enemy.vy = 0;
+    enemy.minX = enemy.x;
+    enemy.maxX = enemy.x + enemy.w;
+  } else if (def.axis === "y") {
     enemy.y = Math.max(enemy.minY, Math.min(enemy.maxY - enemy.h, enemy.y));
     enemy.vy = speed;
   } else {
@@ -879,6 +911,7 @@ export function buildLevel(index = levelIndex) {
   level.coins = [];
   level.enemies = [];
   level.checkpoints = [];
+  level.projectiles = [];
 
   for (const p of def.platforms) addPlatform(...p);
   for (const h of def.hazards) addHazard(...h);
