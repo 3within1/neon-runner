@@ -98,6 +98,8 @@ function bindTouchButton(el, prop) {
  * @param {{
  *   isMenuOpen: () => boolean,
  *   onStart: () => void,
+ *   onPause?: () => void,
+ *   onMute?: () => void,
  *   touchLeft: HTMLElement | null,
  *   touchRight: HTMLElement | null,
  *   touchJump: HTMLElement | null,
@@ -107,6 +109,19 @@ export function initInput(options) {
   onStartRequest = options.onStart;
 
   window.addEventListener("keydown", (e) => {
+    if (e.code === "KeyM" && !isInteractiveTarget(e.target)) {
+      e.preventDefault();
+      options.onMute?.();
+      return;
+    }
+    if (e.code === "Escape" || e.code === "KeyP") {
+      if (!isInteractiveTarget(e.target)) {
+        e.preventDefault();
+        options.onPause?.();
+      }
+      return;
+    }
+
     if (
       (e.code === "Enter" || e.code === "Space") &&
       options.isMenuOpen() &&

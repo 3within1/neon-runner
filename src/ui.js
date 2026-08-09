@@ -1,6 +1,17 @@
 import {
   overlay,
   startBtn,
+  practiceBtn,
+  hardToggleBtn,
+  resumeBtn,
+  restartBtn,
+  quitBtn,
+  pauseActionsEl,
+  sectorSelectEl,
+  sectorButtonsEl,
+  bestClearEl,
+  metaRowEl,
+  timerEl,
   scoreEl,
   packsEl,
   killsEl,
@@ -34,6 +45,13 @@ import {
 } from "./leaderboard.js";
 import { getLevelCount, getLevelDef } from "./level.js";
 import {
+  formatClock,
+  getBestClearTime,
+  getUnlockedSector,
+  isHardModePreferred,
+  setHardModePreferred,
+} from "./progress.js";
+import {
   preferTouch,
   score,
   lives,
@@ -43,6 +61,9 @@ import {
   runCoins,
   runStomps,
   runElapsed,
+  hardMode,
+  setHardMode,
+  practiceMode,
 } from "./state.js";
 
 /**
@@ -60,6 +81,8 @@ import {
 /** @type {PendingScore | null} */
 let pendingScore = null;
 let announcedScoreReset = false;
+/** @type {null | ((index: number) => void)} */
+let onSectorPick = null;
 
 export function updateHud() {
   scoreEl.textContent = String(score).padStart(4, "0");
@@ -69,6 +92,7 @@ export function updateHud() {
   if (sectorEl) {
     sectorEl.textContent = `${String(levelIndex + 1).padStart(2, "0")}/${String(getLevelCount()).padStart(2, "0")}`;
   }
+  if (timerEl) timerEl.textContent = formatClock(runElapsed);
   const scoreWrap = scoreEl?.parentElement;
   if (scoreWrap) {
     scoreWrap.setAttribute(
@@ -102,14 +126,16 @@ function syncOneMuteButton(btn) {
     return;
   }
   btn.disabled = false;
-  const off = isMuted();
-  btn.textContent = off ? "AUDIO OFF" : "AUDIO ON";
-  btn.setAttribute("aria-pressed", off ? "true" : "false");
+  const muted = isMuted();
+  btn.textContent = muted ? "AUDIO OFF" : "AUDIO ON";
+  btn.setAttribute("aria-pressed", muted ? "true" : "false");
   btn.setAttribute(
     "aria-label",
-    off ? "AUDIO OFF. Sound is muted. Activate to unmute." : "AUDIO ON. Sound is on. Activate to mute."
+    muted
+      ? "AUDIO OFF. Sound is muted. Activate to unmute."
+      : "AUDIO ON. Sound is on. Activate to mute."
   );
-  btn.classList.toggle("is-muted", off);
+  btn.classList.toggle("is-muted", muted);
 }
 
 export function syncMuteButton() {
@@ -118,57 +144,33 @@ export function syncMuteButton() {
 }
 
 function releaseMuteFocus(e) {
-  const target = e?.currentTarget;
-  if (target instanceof HTMLElement) target.blur();
-  if (state === "playing") {
-    canvas?.focus({ preventScroll: true });
-  }
+  if (e?.currentTarget instanceof HTMLElement) e.currentTarget.blur();
 }
 
 async function handleMuteClick(e) {
+  e?.preventDefault?.();
   e?.stopPropagation?.();
-  if (!isAudioAvailable()) {
-    syncMuteButton();
-    return;
-  }
-
-  releaseMuteFocus(e);
-
-  const willUnmute = isMuted();
+  await unlockAudio();
   toggleMute();
   syncMuteButton();
-
-  if (willUnmute) {
-    await unlockAudio();
-    sfx.ui();
-  }
+  releaseMuteFocus(e);
+  sfx.ui();
 }
 
 export function initMuteControl() {
-  syncMuteButton();
   muteBtn?.addEventListener("click", handleMuteClick);
   hudMuteBtn?.addEventListener("click", handleMuteClick);
-
-  window.addEventListener("keydown", (e) => {
-    if (e.code !== "KeyM") return;
-    if (e.repeat || e.metaKey || e.ctrlKey || e.altKey) return;
-    if (e.target instanceof Element) {
-      const tag = e.target.tagName;
-      if (tag === "INPUT" || tag === "TEXTAREA" || e.target.isContentEditable) return;
-    }
-    e.preventDefault();
-    handleMuteClick();
-  });
+  syncMuteButton();
 }
 
 function snapshotRun(outcome) {
   return {
+    outcome,
     score,
     coins: runCoins,
     stomps: runStomps,
-    sector: levelIndex + 1,
     durationSec: runElapsed,
-    outcome,
+    sector: levelIndex + 1,
   };
 }
 
@@ -214,11 +216,12 @@ function renderLeaderboard() {
     const out = document.createElement("span");
     out.className = "lb-out";
     out.textContent = entry.outcome === "won" ? "W" : "X";
+    const clock = entry.durationSec > 0 ? ` · ${formatClock(entry.durationSec)}` : "";
     const sectorBit = entry.sector ? ` · S${entry.sector}` : "";
     out.title =
       entry.outcome === "won"
-        ? `Full clear${sectorBit}`
-        : `System crash${sectorBit}`;
+        ? `Full clear${sectorBit}${clock}`
+        : `System crash${sectorBit}${clock}`;
     li.append(rank, name, pts, out);
     leaderboardListEl.appendChild(li);
   });
@@ -256,7 +259,6 @@ function pendingPayload(initials) {
   };
 }
 
-/** Persist a qualifying run if the player starts again without pressing SAVE. */
 function flushPendingScore() {
   if (!pendingScore) return;
   const payload = pendingPayload(initialsInput?.value || getLastInitials());
@@ -304,8 +306,78 @@ function handleClearBoard(e) {
   announce("Top runs board cleared.");
 }
 
+export function syncHardToggle() {
+  if (!hardToggleBtn) return;
+  hardToggleBtn.setAttribute("aria-pressed", hardMode ? "true" : "false");
+  hardToggleBtn.textContent = hardMode ? "HARD ON" : "HARD OFF";
+  hardToggleBtn.classList.toggle("is-on", hardMode);
+}
+
+export function syncBestClear() {
+  if (!bestClearEl) return;
+  const best = getBestClearTime();
+  if (best == null) {
+    bestClearEl.hidden = true;
+    bestClearEl.textContent = "";
+    return;
+  }
+  bestClearEl.hidden = false;
+  bestClearEl.textContent = `BEST CLEAR ${formatClock(best)}`;
+}
+
+/**
+ * @param {(index: number) => void} handler
+ */
+export function initSectorSelect(handler) {
+  onSectorPick = handler;
+  renderSectorSelect();
+}
+
+export function renderSectorSelect() {
+  if (!sectorButtonsEl || !sectorSelectEl) return;
+  const unlocked = getUnlockedSector();
+  sectorButtonsEl.replaceChildren();
+  const count = getLevelCount();
+  for (let i = 0; i < count; i++) {
+    const def = getLevelDef(i);
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "sector-btn";
+    btn.textContent = String(i + 1).padStart(2, "0");
+    btn.title = `Sector ${def.sector}: ${def.name}`;
+    btn.disabled = i > unlocked;
+    btn.setAttribute("aria-label", `Start sector ${i + 1}: ${def.name}`);
+    if (i <= unlocked) {
+      btn.addEventListener("click", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        onSectorPick?.(i);
+      });
+    }
+    sectorButtonsEl.appendChild(btn);
+  }
+}
+
+function setTitleExtrasVisible(show) {
+  if (metaRowEl) metaRowEl.hidden = !show;
+  if (sectorSelectEl) sectorSelectEl.hidden = !show;
+  if (practiceBtn) practiceBtn.hidden = !show;
+  if (show) {
+    syncBestClear();
+    syncHardToggle();
+    renderSectorSelect();
+  }
+}
+
+function setPauseActionsVisible(show) {
+  if (pauseActionsEl) pauseActionsEl.hidden = !show;
+  if (startBtn) startBtn.hidden = show;
+  if (practiceBtn && show) practiceBtn.hidden = true;
+}
+
 export function initLeaderboard() {
   migrateScoreStorage();
+  setHardMode(isHardModePreferred());
   if (!announcedScoreReset) {
     announcedScoreReset = true;
     try {
@@ -320,6 +392,8 @@ export function initLeaderboard() {
   renderLeaderboard();
   setScoreEntryVisible(false);
   setRunSummary("");
+  syncHardToggle();
+  syncBestClear();
 
   scoreSaveBtn?.addEventListener("click", (e) => {
     e.preventDefault();
@@ -328,6 +402,17 @@ export function initLeaderboard() {
   });
 
   clearScoresBtn?.addEventListener("click", handleClearBoard);
+
+  hardToggleBtn?.addEventListener("click", (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const next = !hardMode;
+    setHardMode(next);
+    setHardModePreferred(next);
+    syncHardToggle();
+    announce(next ? "Hard mode online." : "Hard mode offline.");
+    sfx.ui();
+  });
 
   initialsInput?.addEventListener("input", () => {
     const start = initialsInput.selectionStart;
@@ -347,7 +432,6 @@ export function initLeaderboard() {
 }
 
 /**
- * Show end-of-run overlay and optionally prompt for leaderboard initials.
  * @param {'won' | 'dead'} outcome
  * @param {string} title
  * @param {string} tagline
@@ -366,7 +450,7 @@ export function presentRunEnd(outcome, title, tagline, buttonLabel, eyebrow) {
     outcome,
   });
   const fullTagline = tagline;
-  const qualifies = isHighScore(snap);
+  const qualifies = !practiceMode && isHighScore(snap);
   pendingScore = qualifies
     ? {
         outcome,
@@ -382,7 +466,7 @@ export function presentRunEnd(outcome, title, tagline, buttonLabel, eyebrow) {
   setScoreEntryVisible(qualifies);
   setOverlay(true, title, fullTagline, buttonLabel, eyebrow);
   setRunSummary(breakdown);
-  setLeaderboardVisible(true);
+  setLeaderboardVisible(!practiceMode);
 
   if (qualifies) {
     queueMicrotask(() => {
@@ -402,29 +486,53 @@ export function setOverlay(show, title, tagline, buttonLabel, eyebrow) {
     eyebrow ?? `SECTOR ${level.sector || def.sector}`;
   panel.querySelector("h1").textContent = title;
   panel.querySelector(".tagline").textContent = tagline;
-  startBtn.textContent = buttonLabel;
+  if (startBtn) {
+    startBtn.textContent = buttonLabel;
+    startBtn.hidden = false;
+  }
   syncBuildVersion();
   syncMuteButton();
 
+  const paused = state === "paused";
+  const titleLike = state === "title" || state === "dead" || state === "won";
+  setPauseActionsVisible(show && paused);
+  setTitleExtrasVisible(show && state === "title");
+  if (practiceBtn) {
+    practiceBtn.hidden = !(show && state === "title");
+  }
+
   if (show) {
-    const showBoard = state === "title" || state === "dead" || state === "won";
-    setLeaderboardVisible(showBoard);
-    if (state === "title" || state === "cleared" || state === "playing") {
+    const showBoard = titleLike && !paused;
+    setLeaderboardVisible(showBoard && !practiceMode);
+    if (state === "title" || state === "cleared" || state === "playing" || state === "paused") {
+      if (state !== "dead" && state !== "won") {
+        hideScorePrompt();
+        if (state !== "dead" && state !== "won") setRunSummary("");
+      }
+    }
+    if (paused) {
+      setLeaderboardVisible(false);
       hideScorePrompt();
-      if (state !== "dead" && state !== "won") setRunSummary("");
+      setRunSummary("");
+      setTitleExtrasVisible(false);
     }
 
     overlay.inert = false;
     overlay.classList.add("visible");
     overlay.setAttribute("aria-hidden", "false");
     if (!(scoreEntryEl && !scoreEntryEl.hidden)) {
-      queueMicrotask(() => startBtn.focus());
+      queueMicrotask(() => {
+        if (paused) resumeBtn?.focus();
+        else startBtn?.focus();
+      });
     }
     announce(`${title}. ${tagline}`);
   } else {
     flushPendingScore();
     setLeaderboardVisible(false);
     setRunSummary("");
+    setPauseActionsVisible(false);
+    setTitleExtrasVisible(false);
     const active = document.activeElement;
     if (
       active === startBtn ||
@@ -433,6 +541,11 @@ export function setOverlay(show, title, tagline, buttonLabel, eyebrow) {
       active === initialsInput ||
       active === scoreSaveBtn ||
       active === clearScoresBtn ||
+      active === practiceBtn ||
+      active === hardToggleBtn ||
+      active === resumeBtn ||
+      active === restartBtn ||
+      active === quitBtn ||
       overlay.contains(active)
     ) {
       if (active instanceof HTMLElement) active.blur();
@@ -443,5 +556,5 @@ export function setOverlay(show, title, tagline, buttonLabel, eyebrow) {
     overlay.inert = true;
   }
 
-  setTouchVisible(!show && state === "playing");
+  setTouchVisible(!show && (state === "playing" || state === "paused"));
 }

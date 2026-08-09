@@ -273,6 +273,32 @@ export const sfx = {
     tone(330, 0.16, "square", 0.09, null, 0.12);
     tone(524, 0.28, "triangle", 0.11, null, 0.24);
   },
+  victorySting() {
+    tone(392, 0.12, "square", 0.1);
+    tone(523, 0.12, "square", 0.1, null, 0.1);
+    tone(659, 0.12, "square", 0.1, null, 0.2);
+    tone(784, 0.14, "triangle", 0.11, null, 0.3);
+    tone(1046, 0.4, "triangle", 0.12, null, 0.42);
+  },
+  powerup() {
+    tone(660, 0.08, "square", 0.09);
+    tone(990, 0.12, "triangle", 0.1, 1320, 0.05);
+  },
+  checkpoint() {
+    tone(523, 0.08, "triangle", 0.08);
+    tone(784, 0.12, "square", 0.08, null, 0.07);
+  },
+  turret() {
+    tone(240, 0.06, "sawtooth", 0.07, 120);
+    noiseBurst(0.04, 0.05, 1200);
+  },
+  shockwave() {
+    noiseBurst(0.2, 0.14, 350);
+    tone(90, 0.22, "sawtooth", 0.1, 40);
+  },
+  pause() {
+    tone(330, 0.08, "triangle", 0.07);
+  },
 };
 
 /*

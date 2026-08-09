@@ -6,12 +6,17 @@ import { mod } from "./physics.js";
 import { getSectorTheme } from "./sectorTheme.js";
 import {
   camera,
+  combo,
+  hardMode,
   level,
   levelIndex,
+  magnetBoost,
   player,
   reduceMotion,
   shakeX,
   shakeY,
+  shieldBoost,
+  speedBoost,
   state,
   time,
 } from "./state.js";
@@ -418,7 +423,7 @@ function drawRex(e) {
 
 function drawBossHud() {
   const boss = getLivingBoss();
-  if (!boss || state !== "playing") return;
+  if (!boss || (state !== "playing" && state !== "paused")) return;
   // Show once the runner is near the arena / boss has engaged.
   if (!boss.engaged && player.x < boss.minX - TILE * 4) return;
 
@@ -455,10 +460,46 @@ function drawBossHud() {
   ctx.restore();
 }
 
+function drawTurret(e) {
+  const s = worldToScreen(e.x, e.y);
+  if (s.x + e.w < -20 || s.x > W + 20) return;
+  const flashing = e.flash > 0 && Math.floor(e.flash * 24) % 2 === 0;
+  const damaged = e.hp < e.maxHp;
+  ctx.save();
+  ctx.translate(s.x + e.w / 2, s.y + e.h / 2);
+  if (flashing) ctx.globalAlpha = 0.45;
+  ctx.shadowColor = e.stroke;
+  ctx.shadowBlur = reduceMotion ? 0 : 12;
+  ctx.fillStyle = flashing ? "#ffffff" : e.fill;
+  ctx.strokeStyle = damaged ? COLORS.magenta : e.stroke;
+  ctx.lineWidth = 2.5;
+  roundRect(-e.w / 2, -e.h / 2 + 4, e.w, e.h - 4, 4);
+  ctx.fill();
+  ctx.stroke();
+  ctx.fillStyle = e.eye;
+  ctx.beginPath();
+  ctx.arc(0, -2, 6, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = "#041018";
+  ctx.beginPath();
+  ctx.arc(Math.sign(player.x - e.x) * 2 || 1, -2, 2.5, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = e.thruster;
+  ctx.fillRect(-e.w / 2 - 4, 6, 8, 6);
+  ctx.fillRect(e.w / 2 - 4, 6, 8, 6);
+  ctx.restore();
+  ctx.shadowBlur = 0;
+  ctx.globalAlpha = 1;
+}
+
 function drawEnemy(e) {
   if (!e.alive) return;
   if (e.type === "rex" || e.type === "rexBoss") {
     drawRex(e);
+    return;
+  }
+  if (e.turret || e.type === "turret") {
+    drawTurret(e);
     return;
   }
 
@@ -479,7 +520,7 @@ function drawEnemy(e) {
 
   ctx.shadowColor = e.stroke;
   ctx.shadowBlur = reduceMotion ? 0 : e.type === "swarm" ? 10 : 14;
-  ctx.fillStyle = flashing ? "#ffffff" : e.fill;
+  ctx.fillStyle = flashing ? "#ffffff" : e.fill || "#2a0830";
   ctx.strokeStyle = damaged ? COLORS.amber : e.stroke;
   ctx.lineWidth = e.type === "armored" ? 3 : e.type === "needle" ? 1.5 : 2;
 
@@ -643,7 +684,8 @@ function drawPlayer() {
 
 function drawParticles() {
   if (reduceMotion) return;
-  if (state !== "playing" || player.anim !== "run" || !player.onGround) return;
+  if (state !== "playing" && state !== "paused") return;
+  if (player.anim !== "run" || !player.onGround) return;
   for (let i = 0; i < 3; i++) {
     const s = worldToScreen(
       player.x + player.w / 2 - player.facing * (8 + i * 4),
@@ -654,16 +696,123 @@ function drawParticles() {
   }
 }
 
+function drawCheckpoints() {
+  for (const c of level.checkpoints) {
+    const s = worldToScreen(c.x, c.y);
+    if (s.x + c.w < -20 || s.x > W + 20) continue;
+    const pulse = reduceMotion ? 0.5 : 0.55 + Math.sin(time * 5 + c.x) * 0.45;
+    ctx.save();
+    ctx.strokeStyle = c.taken
+      ? `rgba(182, 255, 59, ${0.35 + pulse * 0.35})`
+      : `rgba(53, 240, 255, ${0.4 + pulse * 0.4})`;
+    ctx.fillStyle = c.taken
+      ? "rgba(182, 255, 59, 0.12)"
+      : "rgba(53, 240, 255, 0.1)";
+    ctx.lineWidth = 2;
+    ctx.fillRect(s.x, s.y, c.w, c.h);
+    ctx.strokeRect(s.x, s.y, c.w, c.h);
+    ctx.fillStyle = c.taken ? COLORS.lime : COLORS.cyan;
+    ctx.font = "700 9px Orbitron, sans-serif";
+    ctx.textAlign = "center";
+    ctx.fillText(c.taken ? "LINK" : "SAVE", s.x + c.w / 2, s.y - 4);
+    ctx.textAlign = "left";
+    ctx.restore();
+  }
+}
+
+function drawPowerups() {
+  for (const p of level.powerups) {
+    if (p.taken) continue;
+    const bob = reduceMotion ? 0 : Math.sin(p.phase) * 4;
+    const s = worldToScreen(p.x, p.y + bob);
+    const color = p.kind === "magnet" ? COLORS.amber : COLORS.magenta;
+    ctx.save();
+    ctx.shadowColor = color;
+    ctx.shadowBlur = reduceMotion ? 0 : 14;
+    ctx.fillStyle = "#120818";
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 2;
+    roundRect(s.x, s.y, p.w, p.h, 6);
+    ctx.fill();
+    ctx.stroke();
+    ctx.fillStyle = color;
+    ctx.font = "700 9px Orbitron, sans-serif";
+    ctx.textAlign = "center";
+    ctx.fillText(p.kind === "magnet" ? "MAG" : "OVR", s.x + p.w / 2, s.y + p.h * 0.62);
+    ctx.textAlign = "left";
+    ctx.restore();
+    ctx.shadowBlur = 0;
+  }
+}
+
+function drawProjectiles() {
+  for (const p of level.projectiles) {
+    const s = worldToScreen(p.x, p.y);
+    ctx.save();
+    ctx.shadowColor = COLORS.amber;
+    ctx.shadowBlur = reduceMotion ? 0 : 10;
+    ctx.fillStyle = COLORS.amber;
+    ctx.fillRect(s.x, s.y, p.w, p.h);
+    ctx.restore();
+    ctx.shadowBlur = 0;
+  }
+}
+
+function drawShockwaves() {
+  for (const w of level.shockwaves) {
+    const s = worldToScreen(w.x, w.y);
+    const alpha = Math.max(0.15, w.life);
+    ctx.save();
+    ctx.strokeStyle = `rgba(255, 43, 214, ${alpha})`;
+    ctx.fillStyle = `rgba(255, 43, 214, ${alpha * 0.25})`;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.ellipse(s.x + w.w / 2, s.y + w.h / 2, w.w / 2, w.h / 2, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+    ctx.restore();
+  }
+}
+
+function drawStatusChips() {
+  if (state !== "playing" && state !== "paused") return;
+  const chips = [];
+  if (hardMode) chips.push({ label: "HARD", color: COLORS.magenta });
+  if (combo > 1) chips.push({ label: `COMBO x${combo}`, color: COLORS.lime });
+  if (speedBoost > 0) chips.push({ label: "OVERCLOCK", color: COLORS.cyan });
+  if (magnetBoost > 0) chips.push({ label: "MAGNET", color: COLORS.amber });
+  if (shieldBoost > 0) chips.push({ label: "SHIELD", color: COLORS.magenta });
+  if (level.bossFanfare > 0) chips.push({ label: "CORE UNLOCKING", color: COLORS.lime });
+  let x = 16;
+  const y = H - 28;
+  ctx.font = "700 10px Orbitron, sans-serif";
+  for (const chip of chips) {
+    const w = ctx.measureText(chip.label).width + 16;
+    ctx.fillStyle = "rgba(8, 4, 16, 0.7)";
+    ctx.fillRect(x, y, w, 18);
+    ctx.strokeStyle = chip.color;
+    ctx.strokeRect(x, y, w, 18);
+    ctx.fillStyle = chip.color;
+    ctx.fillText(chip.label, x + 8, y + 13);
+    x += w + 8;
+  }
+}
+
 export function draw() {
   drawBackground();
   drawPlatforms();
+  drawCheckpoints();
   drawHazards();
   drawCoins();
+  drawPowerups();
   drawExit();
   for (const e of level.enemies) drawEnemy(e);
-  if (state === "playing") drawPlayer();
+  drawProjectiles();
+  drawShockwaves();
+  if (state === "playing" || state === "paused") drawPlayer();
   drawParticles();
   drawBossHud();
+  drawStatusChips();
 
   ctx.strokeStyle = "rgba(53, 240, 255, 0.15)";
   ctx.lineWidth = 2;

@@ -5,7 +5,7 @@ import { setTouchVisible } from "./ui.js";
 
 initDom();
 initMediaFlags(() => {
-  setTouchVisible(state === "playing");
+  setTouchVisible(state === "playing" || state === "paused");
 });
 
 initGame({

@@ -4,6 +4,7 @@ import {
   SCORE_REX,
   SCORE_REX_BOSS,
   SCORE_STOMP,
+  SCORE_TURRET,
   TILE,
 } from "./constants.js";
 import { rect } from "./physics.js";
@@ -13,9 +14,12 @@ import { level, levelIndex } from "./state.js";
  * Declarative level defs (tile units).
  * platforms/hazards: [tx, ty, tw, th]
  * coins: [tx, ty]
+ * checkpoints: [tx, ty] — pad centers (tile)
+ * powerups: [tx, ty, kind] — kind: "overclock" | "magnet"
  * enemies: [tx, ty, minA, maxA] or [tx, ty, minA, maxA, type]
  *   type defaults to "drone". For axis "x" types, minA/maxA are tile X bounds;
  *   for "climber" (axis "y"), minA/maxA are tile Y bounds.
+ *   Turrets ignore patrol span (placed at tx,ty).
  */
 
 /** Per-type stats used by spawnEnemy / simulation / render. */
@@ -94,6 +98,23 @@ export const ENEMY_TYPES = {
     eye: COLORS.magenta,
     thruster: COLORS.amber,
     radius: 6,
+  },
+  /** Fixed emplacement — fires bolts toward the runner. */
+  turret: {
+    w: 36,
+    h: 36,
+    speed: 0,
+    hp: 2,
+    score: SCORE_TURRET,
+    axis: "x",
+    bobAmp: 0,
+    bobSpeed: 0,
+    turret: true,
+    fill: "#181028",
+    stroke: COLORS.amber,
+    eye: COLORS.lime,
+    thruster: COLORS.magenta,
+    radius: 4,
   },
   /** Ground-stomping Cyber-Rex (sprite + walk cycle). */
   rex: {
@@ -251,6 +272,11 @@ export const LEVELS = [
       [24, 11],
       [38, 11],
     ],
+    checkpoints: [
+      [22, 5],
+      [45, 6],
+    ],
+    powerups: [[36, 6, "overclock"]],
     enemies: [
       [5, 11, 4, 9, "drone"],
       [25, 11, 22, 30, "drone"],
@@ -322,6 +348,8 @@ export const LEVELS = [
       [25, 9],
       [43, 9],
     ],
+    checkpoints: [[33, 5]],
+    powerups: [[52, 2, "magnet"]],
     enemies: [
       [11, 9, 9, 13, "needle"],
       [25, 9, 23, 28, "needle"],
@@ -329,6 +357,7 @@ export const LEVELS = [
       [20, 3, 19, 21, "needle"],
       [34, 4, 33, 35, "needle"],
       [53, 2, 52, 55, "needle"],
+      [46, 9, 46, 46, "turret"],
     ],
   },
   {
@@ -380,6 +409,11 @@ export const LEVELS = [
       [56, 9],
       [70, 9],
     ],
+    checkpoints: [
+      [28, 4],
+      [54, 5],
+    ],
+    powerups: [[42, 2, "overclock"]],
     enemies: [
       [4, 9, 4, 14, "swarm"],
       [10, 9, 5, 15, "swarm"],
@@ -393,6 +427,9 @@ export const LEVELS = [
       [43, 2, 42, 46, "swarm"],
       [56, 4, 54, 59, "drone"],
       [69, 5, 68, 71, "drone"],
+      // Warm-up Cyber-Rex before the finale arena
+      [48, 8.5, 46, 58, "rex"],
+      [60, 9, 60, 60, "turret"],
     ],
   },
   {
@@ -477,6 +514,15 @@ export const LEVELS = [
       [56, 11],
       [78, 11],
     ],
+    checkpoints: [
+      [30, 3],
+      [54, 4],
+      [80, 3],
+    ],
+    powerups: [
+      [46, 3, "magnet"],
+      [72, 4, "overclock"],
+    ],
     enemies: [
       [4, 11, 4, 7, "drone"],
       [14, 11, 11, 16, "swarm"],
@@ -494,6 +540,9 @@ export const LEVELS = [
       [73, 3, 72, 75, "needle"],
       [81, 2, 80, 83, "swarm"],
       [89, 2, 88, 91, "armored"],
+      // Gauntlet Cyber-Rex before the vault door
+      [58, 10.25, 51, 64, "rex"],
+      [76, 11, 76, 76, "turret"],
     ],
   },
   {
@@ -561,10 +610,11 @@ function spawnEnemy(tx, ty, minA, maxA, typeName = "drone") {
     throw new Error(`Unknown enemy type "${typeName}" in ${level.name || "level"}`);
   }
 
+  const isTurret = !!def.turret;
   const min = minA * TILE;
   const max = maxA * TILE;
   const size = def.axis === "y" ? def.h : def.w;
-  if (max - min < size) {
+  if (!isTurret && max - min < size) {
     throw new Error(
       `Enemy patrol too narrow in ${level.name || "level"} (${typeName}): [${minA}, ${maxA}]`
     );
@@ -576,14 +626,15 @@ function spawnEnemy(tx, ty, minA, maxA, typeName = "drone") {
     grounded: !!def.grounded,
     boss: !!def.boss,
     chase: !!def.chase,
+    turret: isTurret,
     x: tx * TILE,
     y: ty * TILE,
     w: def.w,
     h: def.h,
     vx: 0,
     vy: 0,
-    minX: def.axis === "x" ? min : tx * TILE,
-    maxX: def.axis === "x" ? max : tx * TILE + def.w,
+    minX: isTurret ? tx * TILE : def.axis === "x" ? min : tx * TILE,
+    maxX: isTurret ? tx * TILE + def.w : def.axis === "x" ? max : tx * TILE + def.w,
     minY: def.axis === "y" ? min : ty * TILE,
     maxY: def.axis === "y" ? max : ty * TILE + def.h,
     speed: def.speed,
@@ -603,11 +654,18 @@ function spawnEnemy(tx, ty, minA, maxA, typeName = "drone") {
     bob: (tx * 0.7 + ty * 0.3) % (Math.PI * 2),
     charging: 0,
     chargeCd: 0,
+    fireCd: isTurret ? 0.6 + (tx % 5) * 0.15 : 0,
     engaged: false,
     enrageAnnounced: false,
+    phase3Announced: false,
+    summoned: false,
+    lockAnnounced: false,
   };
 
-  if (def.axis === "y") {
+  if (isTurret) {
+    enemy.vx = 0;
+    enemy.vy = 0;
+  } else if (def.axis === "y") {
     enemy.y = Math.max(enemy.minY, Math.min(enemy.maxY - enemy.h, enemy.y));
     enemy.vy = def.speed;
   } else {
@@ -615,11 +673,61 @@ function spawnEnemy(tx, ty, minA, maxA, typeName = "drone") {
     enemy.vx = def.speed;
   }
 
-  if (def.grounded) {
+  if (def.grounded || isTurret) {
     snapEnemyToGround(enemy);
   }
 
   level.enemies.push(enemy);
+}
+
+/** Runtime spawn used by boss phase summons (world coords). */
+export function spawnRuntimeEnemy(typeName, x, y, minX, maxX) {
+  const def = ENEMY_TYPES[typeName];
+  if (!def) return null;
+  const enemy = {
+    type: typeName,
+    axis: def.axis,
+    grounded: !!def.grounded,
+    boss: false,
+    chase: false,
+    turret: !!def.turret,
+    x,
+    y,
+    w: def.w,
+    h: def.h,
+    vx: def.speed,
+    vy: 0,
+    minX,
+    maxX,
+    minY: y,
+    maxY: y + def.h,
+    speed: def.speed,
+    hp: def.hp,
+    maxHp: def.hp,
+    score: def.score,
+    bobAmp: def.bobAmp,
+    bobSpeed: def.bobSpeed,
+    fill: def.fill,
+    stroke: def.stroke,
+    eye: def.eye,
+    thruster: def.thruster,
+    radius: def.radius,
+    alive: true,
+    flash: 0,
+    walk: 0,
+    bob: 0,
+    charging: 0,
+    chargeCd: 0,
+    fireCd: 0,
+    engaged: false,
+    enrageAnnounced: false,
+    phase3Announced: false,
+    summoned: true,
+    lockAnnounced: false,
+  };
+  if (def.grounded) snapEnemyToGround(enemy);
+  level.enemies.push(enemy);
+  return enemy;
 }
 
 /** Place grounded enemies so their feet sit on the nearest platform top below. */
@@ -651,8 +759,9 @@ export function enemyBody(e) {
   return { x: e.x, y: e.y + bob, w: e.w, h: e.h };
 }
 
-/** True while any boss enemy is still alive (gates the sector exit). */
+/** True while any boss enemy is still alive, or defeat fanfare is playing. */
 export function isExitLocked() {
+  if (level.bossFanfare > 0) return true;
   return level.enemies.some((e) => e.boss && e.alive);
 }
 
@@ -695,6 +804,11 @@ export function buildLevel(index = levelIndex) {
   level.hazards = [];
   level.coins = [];
   level.enemies = [];
+  level.checkpoints = [];
+  level.powerups = [];
+  level.projectiles = [];
+  level.shockwaves = [];
+  level.bossFanfare = 0;
 
   for (const p of def.platforms) addPlatform(...p);
   for (const h of def.hazards) addHazard(...h);
@@ -707,6 +821,26 @@ export function buildLevel(index = levelIndex) {
       phase: (i * 0.7) % (Math.PI * 2),
     });
   });
+  for (const [tx, ty] of def.checkpoints || []) {
+    level.checkpoints.push({
+      x: tx * TILE,
+      y: ty * TILE + TILE * 0.55,
+      w: TILE,
+      h: TILE * 0.45,
+      taken: false,
+    });
+  }
+  for (const [tx, ty, kind] of def.powerups || []) {
+    level.powerups.push({
+      x: tx * TILE + TILE * 0.25,
+      y: ty * TILE + TILE * 0.15,
+      w: TILE * 0.5,
+      h: TILE * 0.5,
+      kind: kind === "magnet" ? "magnet" : "overclock",
+      taken: false,
+      phase: Math.random() * Math.PI * 2,
+    });
+  }
   for (const e of def.enemies) spawnEnemy(...e);
   assertExitGrounded();
 }

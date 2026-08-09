@@ -143,7 +143,9 @@ body {
 }
 
 .panel {
-  width: min(90%, 420px);
+  width: min(92%, 460px);
+  max-height: min(92vh, 640px);
+  overflow: auto;
   padding: 2rem 1.75rem;
   text-align: center;
   background: var(--panel);
@@ -351,7 +353,98 @@ body {
   display: none !important;
 }
 
-#start-btn {
+.meta-row {
+  margin: -0.6rem 0 1rem;
+}
+
+.best-clear {
+  font-family: Orbitron, sans-serif;
+  font-size: 0.62rem;
+  letter-spacing: 0.22em;
+  color: var(--lime);
+  margin-bottom: 0.55rem;
+}
+
+.mode-toggles {
+  display: flex;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+#hard-toggle,
+.secondary-btn,
+.sector-btn,
+#resume-btn,
+#restart-btn,
+#quit-btn,
+#practice-btn {
+  appearance: none;
+  border: 1px solid rgba(127, 145, 168, 0.55);
+  background: transparent;
+  color: var(--muted);
+  font-family: Orbitron, sans-serif;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  font-size: 0.65rem;
+  padding: 0.55rem 0.85rem;
+  cursor: pointer;
+}
+
+#hard-toggle.is-on {
+  color: var(--magenta);
+  border-color: rgba(255, 43, 214, 0.75);
+  box-shadow: var(--glow-magenta);
+}
+
+.sector-select {
+  margin: 0 0 1rem;
+}
+
+.sector-select[hidden],
+.meta-row[hidden],
+.pause-actions[hidden],
+#practice-btn[hidden],
+#start-btn[hidden] {
+  display: none !important;
+}
+
+.sector-select-title {
+  font-family: Orbitron, sans-serif;
+  font-size: 0.58rem;
+  letter-spacing: 0.28em;
+  color: var(--cyan);
+  margin-bottom: 0.4rem;
+}
+
+.sector-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.35rem;
+}
+
+.sector-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.sector-btn:not(:disabled):hover,
+.secondary-btn:hover,
+#hard-toggle:hover {
+  color: var(--cyan);
+  border-color: rgba(53, 240, 255, 0.7);
+}
+
+.action-row,
+.pause-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.55rem;
+}
+
+#start-btn,
+#resume-btn {
   appearance: none;
   border: 1px solid var(--cyan);
   background: linear-gradient(180deg, rgba(53, 240, 255, 0.18), rgba(53, 240, 255, 0.05));
@@ -366,13 +459,15 @@ body {
   transition: transform 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
 }
 
-#start-btn:hover {
+#start-btn:hover,
+#resume-btn:hover {
   transform: translateY(-1px) scale(1.02);
   background: linear-gradient(180deg, rgba(255, 43, 214, 0.25), rgba(53, 240, 255, 0.12));
   box-shadow: var(--glow-magenta), var(--glow-cyan);
 }
 
-#start-btn:focus-visible {
+#start-btn:focus-visible,
+#resume-btn:focus-visible {
   outline: 2px solid var(--cyan);
   outline-offset: 3px;
   background: linear-gradient(180deg, rgba(255, 43, 214, 0.25), rgba(53, 240, 255, 0.12));
@@ -482,6 +577,12 @@ body {
   min-width: 5rem;
   color: var(--magenta);
   border-color: rgba(255, 43, 214, 0.55);
+}
+
+#touch-pause {
+  min-width: 3.25rem;
+  color: var(--amber);
+  border-color: rgba(255, 179, 71, 0.55);
 }
 
 .sr-only {

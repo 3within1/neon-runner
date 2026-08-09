@@ -3,10 +3,15 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#07040f" />
+    <meta name="description" content="NEON RUNNER — cyberpunk browser platformer" />
     <meta
       http-equiv="Content-Security-Policy"
-      content="default-src 'self'; style-src 'self' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; script-src 'self'"
+      content="default-src 'self'; style-src 'self' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; script-src 'self'; worker-src 'self'; manifest-src 'self'; img-src 'self' data:"
     />
+    <link rel="manifest" href="manifest.webmanifest" />
+    <link rel="icon" href="assets/icon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="assets/icon-192.png" />
     <title>NEON RUNNER</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -14,7 +19,7 @@
       href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Share+Tech+Mono&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="src/style.css?v=1.8.0" />
+    <link rel="stylesheet" href="src/style.css?v=1.9.0" />
   </head>
   <body>
     <div id="app">
@@ -23,6 +28,7 @@
           <div class="brand">NEON RUNNER</div>
           <div class="stats">
             <span id="sector">STAGE <b>01/06</b></span>
+            <span id="timer">TIME <b>0:00</b></span>
             <span id="score">DATA <b>0000</b></span>
             <span id="packs">PACKS <b>00</b></span>
             <span id="kills">KILLS <b>00</b></span>
@@ -38,7 +44,7 @@
           height="540"
           tabindex="-1"
           role="img"
-          aria-label="Neon Runner gameplay. Use arrow keys or WASD to move and jump."
+          aria-label="Neon Runner gameplay. Use arrow keys or WASD to move and jump. Esc pauses."
         ></canvas>
         <div id="scanlines" aria-hidden="true"></div>
         <div id="vignette" aria-hidden="true"></div>
@@ -54,6 +60,16 @@
             <p class="eyebrow">SECTOR 2084</p>
             <h1 id="overlay-title">NEON RUNNER</h1>
             <p class="tagline">Jack the stolen city core before lockdown seals the grid for good.</p>
+            <div id="meta-row" class="meta-row">
+              <p id="best-clear" class="best-clear" hidden></p>
+              <div id="mode-toggles" class="mode-toggles">
+                <button id="hard-toggle" type="button" aria-pressed="false">HARD OFF</button>
+              </div>
+            </div>
+            <div id="sector-select" class="sector-select" hidden>
+              <p class="sector-select-title">SECTOR SELECT</p>
+              <div id="sector-buttons" class="sector-buttons"></div>
+            </div>
             <div id="score-entry" class="score-entry" hidden>
               <label for="initials-input">TAG</label>
               <input
@@ -72,16 +88,24 @@
               <button id="clear-scores-btn" type="button">CLEAR BOARD</button>
             </div>
             <p id="run-summary" class="run-summary" hidden></p>
-            <button id="start-btn" type="button">JACK IN</button>
+            <div class="action-row">
+              <button id="start-btn" type="button">JACK IN</button>
+              <button id="practice-btn" type="button" class="secondary-btn">REX PRACTICE</button>
+            </div>
+            <div id="pause-actions" class="pause-actions" hidden>
+              <button id="resume-btn" type="button">RESUME</button>
+              <button id="restart-btn" type="button" class="secondary-btn">RESTART</button>
+              <button id="quit-btn" type="button" class="secondary-btn">QUIT</button>
+            </div>
             <div class="overlay-tools">
               <button id="mute-btn" type="button" aria-pressed="false" aria-label="AUDIO ON. Sound is on. Activate to mute.">
                 AUDIO ON
               </button>
             </div>
             <p class="controls">
-              ← → / A D move &nbsp;·&nbsp; SPACE / W / ↑ jump &nbsp;·&nbsp; M mute &nbsp;·&nbsp; Enter to start
+              ← → / A D move &nbsp;·&nbsp; SPACE / W / ↑ jump &nbsp;·&nbsp; wall cling + jump &nbsp;·&nbsp; Esc pause &nbsp;·&nbsp; M mute
               <br />
-              Data packs +10 DATA &nbsp;·&nbsp; Stomp +20 &nbsp;·&nbsp; Armored +40 &nbsp;·&nbsp; Boss +200
+              Packs +10 · Stomp +20 · Turret +30 · Armored +40 · Rex +60 · Boss +200 · Combo bonus
             </p>
             <p class="build" id="build-version"></p>
           </div>
@@ -92,10 +116,11 @@
             <button type="button" id="touch-right" aria-label="Move right">▶</button>
           </div>
           <button type="button" id="touch-jump" aria-label="Jump">JUMP</button>
+          <button type="button" id="touch-pause" aria-label="Pause">❚❚</button>
         </div>
       </div>
     </div>
     <p id="status-live" class="sr-only" aria-live="assertive"></p>
-    <script type="module" src="src/main.js?v=1.8.0"></script>
+    <script type="module" src="src/main.js?v=1.9.0"></script>
   </body>
 </html>

@@ -1,5 +1,22 @@
-import { canvas, startBtn, W } from "./dom.js";
-import { getMusicThemeCount, initAudio, sfx, startMusic, unlockAudio } from "./audio.js";
+import {
+  canvas,
+  startBtn,
+  practiceBtn,
+  resumeBtn,
+  restartBtn,
+  quitBtn,
+  touchPauseBtn,
+  W,
+} from "./dom.js";
+import {
+  getMusicThemeCount,
+  initAudio,
+  sfx,
+  startMusic,
+  stopMusic,
+  toggleMute,
+  unlockAudio,
+} from "./audio.js";
 import { clearInput, initInput } from "./input.js";
 import { getLevelCount, getLevelDef, LEVELS } from "./level.js";
 import { draw } from "./render.js";
@@ -7,12 +24,17 @@ import { SECTOR_THEMES, getSectorThemeCount } from "./sectorTheme.js";
 import {
   advanceLevel,
   resetRun,
+  updateBossFanfare,
   updateCamera,
+  updateCheckpoints,
   updateCoins,
   updateEnemies,
   updateExit,
   updateHazards,
   updatePlayer,
+  updatePowerups,
+  updateProjectiles,
+  updateShockwaves,
 } from "./simulation.js";
 import {
   addRunElapsed,
@@ -20,6 +42,8 @@ import {
   camera,
   level,
   levelIndex,
+  practiceMode,
+  setPracticeMode,
   setShakeOffset,
   setState,
   state,
@@ -35,14 +59,16 @@ import {
   announce,
   initLeaderboard,
   initMuteControl,
+  initSectorSelect,
   setOverlay,
   setTouchVisible,
+  syncBestClear,
+  syncMuteButton,
   updateHud,
 } from "./ui.js";
 
 let transitionLocked = false;
 
-/** Catch silent drift between level defs, backdrop themes, music, and story beats. */
 function assertSectorTables() {
   const n = getLevelCount();
   const themes = getSectorThemeCount();
@@ -85,19 +111,37 @@ function cueGameplayAudio(kind) {
   });
 }
 
-export function startGame() {
+/**
+ * @param {{ startIndex?: number, practice?: boolean }} [opts]
+ */
+export function startGame(opts = {}) {
   if (transitionLocked) return;
-  if (state !== "title" && state !== "dead" && state !== "won") return;
+  if (
+    state !== "title" &&
+    state !== "dead" &&
+    state !== "won" &&
+    state !== "paused"
+  ) {
+    return;
+  }
   transitionLocked = true;
   try {
     clearInput();
+    const practice = !!opts.practice || (practiceMode && (state === "dead" || state === "won"));
+    const startIndex = practice
+      ? getLevelCount() - 1
+      : Math.max(0, opts.startIndex ?? 0);
     setState("playing");
-    resetRun(true);
+    resetRun(true, { startIndex, practice });
     setOverlay(false, "NEON RUNNER", "", "JACK IN");
     setTouchVisible(true);
-    const def = getLevelDef(0);
-    const beat = getSectorStory(0);
-    announce(`Run started. Sector ${def.sector}: ${def.name}. ${beat.brief}`);
+    const def = getLevelDef(levelIndex);
+    const beat = getSectorStory(levelIndex);
+    announce(
+      practice
+        ? `Rex practice. ${beat.brief}`
+        : `Run started. Sector ${def.sector}: ${def.name}. ${beat.brief}`
+    );
     cueGameplayAudio("start");
   } finally {
     transitionLocked = false;
@@ -110,7 +154,6 @@ export function continueToNextSector() {
   transitionLocked = true;
   try {
     clearInput();
-    // Only reachable from mid-run clears; final sector goes to "won" in updateExit.
     advanceLevel();
     setState("playing");
     setOverlay(false, "NEON RUNNER", "", "JACK IN");
@@ -124,14 +167,66 @@ export function continueToNextSector() {
   }
 }
 
+export function pauseGame() {
+  if (state !== "playing") return;
+  clearInput();
+  setState("paused");
+  sfx.pause();
+  setOverlay(true, "PAUSED", "Grid frozen. Resume, restart, or quit.", "RESUME", "SYSTEM HOLD");
+  announce("Paused.");
+}
+
+export function resumeGame() {
+  if (state !== "paused") return;
+  clearInput();
+  setState("playing");
+  setOverlay(false, "NEON RUNNER", "", "JACK IN");
+  setTouchVisible(true);
+  announce("Resumed.");
+  sfx.ui();
+}
+
+export function quitToTitle() {
+  if (transitionLocked) return;
+  transitionLocked = true;
+  try {
+    clearInput();
+    stopMusic();
+    setPracticeMode(false);
+    resetRun(true, { startIndex: 0, practice: false });
+    setState("title");
+    updateHud();
+    syncBestClear();
+    setOverlay(
+      true,
+      TITLE_STORY.title,
+      TITLE_STORY.tagline,
+      TITLE_STORY.button,
+      TITLE_STORY.eyebrow
+    );
+    setTouchVisible(false);
+    announce("Returned to title.");
+    sfx.ui();
+  } finally {
+    transitionLocked = false;
+  }
+}
+
 function onOverlayAction() {
   if (transitionLocked) return;
   if (state === "cleared") continueToNextSector();
+  else if (state === "paused") resumeGame();
   else if (state === "title" || state === "dead" || state === "won") startGame();
 }
 
 function isMenuOpen() {
-  return state === "title" || state === "cleared" || state === "dead" || state === "won";
+  return (
+    state === "title" ||
+    state === "cleared" ||
+    state === "dead" ||
+    state === "won" ||
+    state === "paused"
+  );
 }
 
 let last = performance.now();
@@ -146,10 +241,18 @@ function frame(now) {
     addRunElapsed(rawDt);
     updatePlayer(dt);
     if (state === "playing") updateEnemies(dt);
+    if (state === "playing") updateProjectiles(dt);
+    if (state === "playing") updateShockwaves(dt);
     if (state === "playing") updateCoins(dt);
-    if (state === "playing") updateHazards();
+    if (state === "playing") updatePowerups(dt);
+    if (state === "playing") updateCheckpoints();
+    if (state === "playing") updateHazards(dt);
+    if (state === "playing") updateBossFanfare(dt);
     if (state === "playing") updateExit();
     if (state === "playing") updateCamera(dt);
+    updateHud();
+  } else if (state === "paused") {
+    updateCamera(0);
   } else {
     camera.x = (Math.sin(time * 0.15) * 0.5 + 0.5) * (level.width - W) * 0.2;
     camera.y = 40;
@@ -176,16 +279,57 @@ export function initGame(touchEls) {
   initAudio();
   initMuteControl();
   initLeaderboard();
+  initSectorSelect((index) => startGame({ startIndex: index, practice: false }));
 
   initInput({
     isMenuOpen,
     onStart: onOverlayAction,
+    onPause: () => {
+      if (state === "playing") pauseGame();
+      else if (state === "paused") resumeGame();
+    },
+    onMute: () => {
+      void unlockAudio().then(() => {
+        toggleMute();
+        syncMuteButton();
+        sfx.ui();
+      });
+    },
     touchLeft: touchEls.touchLeft,
     touchRight: touchEls.touchRight,
     touchJump: touchEls.touchJump,
   });
 
-  startBtn.addEventListener("click", onOverlayAction);
+  startBtn?.addEventListener("click", onOverlayAction);
+  practiceBtn?.addEventListener("click", (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    startGame({ practice: true });
+  });
+  resumeBtn?.addEventListener("click", (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    resumeGame();
+  });
+  restartBtn?.addEventListener("click", (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    startGame({
+      startIndex: practiceMode ? getLevelCount() - 1 : 0,
+      practice: practiceMode,
+    });
+  });
+  quitBtn?.addEventListener("click", (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    quitToTitle();
+  });
+  touchPauseBtn?.addEventListener("click", (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (state === "playing") pauseGame();
+    else if (state === "paused") resumeGame();
+  });
 
   resetRun(true);
   setState("title");
@@ -198,5 +342,12 @@ export function initGame(touchEls) {
     TITLE_STORY.eyebrow
   );
   setTouchVisible(false);
+
+  if ("serviceWorker" in navigator) {
+    navigator.serviceWorker.register("./sw.js").catch(() => {
+      /* ignore offline cache failures */
+    });
+  }
+
   requestAnimationFrame(frame);
 }

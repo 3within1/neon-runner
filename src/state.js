@@ -1,6 +1,7 @@
 import { EXTRA_LIFE_EVERY, MAX_LIVES, TILE, START_LIVES } from "./constants.js";
+import { isHardModePreferred } from "./progress.js";
 
-/** @type {'title' | 'playing' | 'cleared' | 'dead' | 'won'} */
+/** @type {'title' | 'playing' | 'paused' | 'cleared' | 'dead' | 'won'} */
 export let state = "title";
 export let score = 0;
 export let lives = START_LIVES;
@@ -11,6 +12,17 @@ export let shake = 0;
 export let shakeX = 0;
 export let shakeY = 0;
 export let levelIndex = 0;
+
+export let hardMode = isHardModePreferred();
+/** Skip leaderboard / unlocks when practicing the boss arena */
+export let practiceMode = false;
+/** Stomp combo chain */
+export let combo = 0;
+export let comboTimer = 0;
+/** Active powerup timers (seconds remaining) */
+export let speedBoost = 0;
+export let magnetBoost = 0;
+export let shieldBoost = 0;
 
 export const camera = { x: 0, y: 0 };
 
@@ -25,6 +37,11 @@ export const level = {
   hazards: [],
   coins: [],
   enemies: [],
+  checkpoints: [],
+  powerups: [],
+  projectiles: [],
+  shockwaves: [],
+  bossFanfare: 0,
 };
 
 export const player = {
@@ -46,6 +63,8 @@ export const player = {
   invuln: 0,
   jumpCutExempt: false,
   suppressLand: false,
+  wallDir: 0,
+  wallCling: 0,
 };
 
 /** Last safe grounded footing */
@@ -64,6 +83,11 @@ export function resetRunStats() {
   runStomps = 0;
   runElapsed = 0;
   nextExtraLifeAt = EXTRA_LIFE_EVERY;
+  combo = 0;
+  comboTimer = 0;
+  speedBoost = 0;
+  magnetBoost = 0;
+  shieldBoost = 0;
 }
 
 export function addRunCoin(n = 1) {
@@ -76,6 +100,31 @@ export function addRunStomp(n = 1) {
 
 export function addRunElapsed(dt) {
   runElapsed += dt;
+}
+
+export function setHardMode(on) {
+  hardMode = !!on;
+}
+
+export function setPracticeMode(on) {
+  practiceMode = !!on;
+}
+
+export function setCombo(count, timer = 0) {
+  combo = count;
+  comboTimer = timer;
+}
+
+export function setSpeedBoost(t) {
+  speedBoost = Math.max(0, t);
+}
+
+export function setMagnetBoost(t) {
+  magnetBoost = Math.max(0, t);
+}
+
+export function setShieldBoost(t) {
+  shieldBoost = Math.max(0, t);
 }
 
 export function initMediaFlags(onChange) {
