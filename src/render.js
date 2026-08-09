@@ -589,18 +589,26 @@ function drawTurret(e) {
 }
 
 function drawProjectiles() {
+  if (!level.projectiles?.length) return;
   for (const p of level.projectiles) {
     const s = worldToScreen(p.x, p.y);
     ctx.save();
-    ctx.shadowColor = COLORS.lime;
-    ctx.shadowBlur = reduceMotion ? 0 : 16;
-    // Bright core + amber shell so bolts read against neon platforms
-    ctx.fillStyle = COLORS.amber;
-    ctx.fillRect(s.x - 2, s.y - 1, p.w + 4, p.h + 2);
+    ctx.globalAlpha = 1;
+    ctx.shadowColor = "#fff6a8";
+    ctx.shadowBlur = reduceMotion ? 0 : 22;
+    // Oversized bright bolt — readable on neon floors and for recordings
+    ctx.fillStyle = "#fff6a8";
+    ctx.fillRect(s.x - 4, s.y - 4, p.w + 8, p.h + 8);
     ctx.fillStyle = COLORS.lime;
-    ctx.fillRect(s.x, s.y + 1, p.w, Math.max(2, p.h - 2));
+    ctx.fillRect(s.x, s.y, p.w, p.h);
+    ctx.strokeStyle = COLORS.amber;
+    ctx.lineWidth = 2;
+    ctx.strokeRect(s.x - 1, s.y - 1, p.w + 2, p.h + 2);
+    // Motion streak
+    const streak = Math.sign(p.vx || -1) * -16;
+    ctx.fillStyle = "rgba(255, 179, 71, 0.55)";
+    ctx.fillRect(s.x + streak, s.y + 2, 14, Math.max(4, p.h - 4));
     ctx.restore();
-    ctx.shadowBlur = 0;
   }
 }
 
