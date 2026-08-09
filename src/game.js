@@ -228,18 +228,18 @@ export function setPendingMode(mode, sector = 0, practice = false) {
  */
 export function demoTurrets() {
   startGame("timeAttack", 2);
-  // Floor pad tops at y=10; first turret sits at tile x=17.
-  player.x = 12.5 * TILE;
-  player.y = 10 * TILE - player.h;
+  // Share the first turret's floor pad ([16,10,3,2]); turret at tile x=17.
+  player.x = 16.15 * TILE;
+  player.y = 10 * TILE - player.h - 0.5;
   player.vx = 0;
   player.vy = 0;
   player.onGround = true;
   player.invuln = Infinity;
   setLives(999);
   for (const e of level.enemies) {
-    if (e.turret) e.fireCd = 0.2;
+    if (e.turret) e.fireCd = 0.05;
   }
-  camera.x = Math.max(0, Math.min(level.width - W, player.x - W * 0.35));
+  camera.x = Math.max(0, Math.min(level.width - W, player.x - W * 0.45));
   camera.y = Math.max(0, Math.min(level.height - 540, player.y - 220));
   announce("TURRET DEMO — amber guns track and fire when you share their lane.");
 }
