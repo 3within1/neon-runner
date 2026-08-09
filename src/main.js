@@ -18,6 +18,18 @@ initGame({
 
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", () => {
+    const isDemo = new URLSearchParams(location.search).has("demo");
+    if (isDemo) {
+      // Demos need fresh modules; skip SW so canvases aren't served stale bundles.
+      navigator.serviceWorker
+        .getRegistrations()
+        .then((regs) => Promise.all(regs.map((r) => r.unregister())))
+        .catch(() => {});
+      if (window.caches) {
+        caches.keys().then((keys) => Promise.all(keys.map((k) => caches.delete(k)))).catch(() => {});
+      }
+      return;
+    }
     navigator.serviceWorker.register("./sw.js").catch(() => {
       /* ignore offline registration failures */
     });
