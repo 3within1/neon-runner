@@ -253,6 +253,10 @@ export const LEVELS = [
       [22, 12, 8, 2],
       [34, 12, 10, 2],
       [48, 12, 16, 2],
+      // Tall cling shafts — teach wall jump on the opening climb
+      [7, 3, 1, 9],
+      [21, 2, 1, 10],
+      [39, 2, 1, 10],
       [4, 9, 3, 1],
       [8, 7, 3, 1],
       [3, 5, 3, 1],
