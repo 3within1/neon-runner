@@ -561,15 +561,15 @@ function updateTurret(e, dt) {
   if (dist < TILE * 14 && e.fireCd <= 0 && Math.abs(dy) < TILE * 3.5) {
     const dir = Math.sign(dx) || 1;
     level.projectiles.push({
-      x: e.x + e.w * 0.5 - 6,
+      x: e.x + e.w * 0.5 - 8,
       y: e.y + e.h * 0.35,
-      w: 14,
-      h: 8,
-      vx: dir * 320,
+      w: 18,
+      h: 10,
+      vx: dir * 300,
       vy: 0,
-      life: 2.2,
+      life: 2.4,
     });
-    e.fireCd = 1.35;
+    e.fireCd = 1.1;
     sfx.turret();
   }
 }

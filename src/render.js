@@ -592,10 +592,13 @@ function drawProjectiles() {
   for (const p of level.projectiles) {
     const s = worldToScreen(p.x, p.y);
     ctx.save();
-    ctx.shadowColor = COLORS.amber;
-    ctx.shadowBlur = reduceMotion ? 0 : 10;
+    ctx.shadowColor = COLORS.lime;
+    ctx.shadowBlur = reduceMotion ? 0 : 16;
+    // Bright core + amber shell so bolts read against neon platforms
     ctx.fillStyle = COLORS.amber;
-    ctx.fillRect(s.x, s.y, p.w, p.h);
+    ctx.fillRect(s.x - 2, s.y - 1, p.w + 4, p.h + 2);
+    ctx.fillStyle = COLORS.lime;
+    ctx.fillRect(s.x, s.y + 1, p.w, Math.max(2, p.h - 2));
     ctx.restore();
     ctx.shadowBlur = 0;
   }
