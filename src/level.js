@@ -246,73 +246,93 @@ export const LEVELS = [
     width: 64,
     height: 14,
     spawn: [2, 11],
-    exit: [58, 0],
+    // Exit stands on the top arena (platform top y=2)
+    exit: [46, 0],
+    /**
+     * Mirrored tower climb around x=32.
+     * Left/right cling shafts + matching ledges, center spine, continuous
+     * sentinel arena at the summit so the mini-Rex never walks into air.
+     */
     platforms: [
-      [0, 12, 10, 2],
-      [12, 12, 6, 2],
-      [22, 12, 8, 2],
-      [34, 12, 10, 2],
-      [48, 12, 16, 2],
-      // Tall cling shafts — teach wall jump on the opening climb
-      [7, 3, 1, 9],
-      [21, 2, 1, 10],
-      [39, 2, 1, 10],
-      [4, 9, 3, 1],
-      [8, 7, 3, 1],
-      [3, 5, 3, 1],
-      [8, 3, 4, 1],
-      [14, 9, 2, 1],
-      [18, 7, 2, 1],
-      [22, 5, 3, 1],
-      [27, 3, 3, 1],
-      [32, 5, 2, 1],
-      [36, 7, 3, 1],
-      [40, 4, 3, 1],
-      [45, 6, 3, 1],
-      [50, 4, 3, 1],
-      [54, 2, 6, 1],
-      [56, 8, 3, 1],
-      [44, 9, 3, 1],
-      [16, 3, 2, 1, "collapse"],
-      [42, 2, 2, 1, "collapse"],
+      // Base — mirrored pads with gap pits between
+      [0, 12, 12, 2],
+      [16, 12, 32, 2],
+      [52, 12, 12, 2],
+      // Cling shafts (mirrored)
+      [12, 3, 1, 9],
+      [51, 3, 1, 9],
+      // Outer ledges (mirrored)
+      [2, 9, 5, 1],
+      [57, 9, 5, 1],
+      [3, 6, 4, 1],
+      [57, 6, 4, 1],
+      [2, 3, 5, 1],
+      [57, 3, 5, 1],
+      // Inner ledges between shafts and center (mirrored)
+      [15, 9, 5, 1],
+      [44, 9, 5, 1],
+      [16, 6, 5, 1],
+      [43, 6, 5, 1],
+      [15, 4, 5, 1],
+      [44, 4, 5, 1],
+      // Center spine
+      [28, 8, 8, 1],
+      [26, 5, 12, 1],
+      // Continuous summit arena for Tower Sentinel
+      [14, 2, 36, 1],
+      // Mirrored collapse traps on the spine
+      [24, 8, 2, 1, "collapse"],
+      [38, 8, 2, 1, "collapse"],
     ],
     hazards: [
-      [10.15, 11.65, 1.7, 0.35],
-      [18.15, 11.65, 3.7, 0.35],
-      [30.15, 11.65, 3.7, 0.35],
-      [44.2, 11.65, 3.6, 0.35],
-      [24, 4.2, 2.5, 0.15, "laser", 1.4],
-      [48, 3.2, 2, 0.15, "laser", 1.1],
+      // Mirrored floor pits
+      [12.2, 11.65, 3.6, 0.35],
+      [48.2, 11.65, 3.6, 0.35],
+      // Mirrored mid lasers
+      [18, 5.2, 2.2, 0.15, "laser", 1.3],
+      [43.8, 5.2, 2.2, 0.15, "laser", 1.3],
     ],
-    checkpoints: [[22, 11], [48, 11], [50, 3]],
+    checkpoints: [
+      [6, 11],
+      [32, 11],
+      [32, 4],
+    ],
     coins: [
-      [5, 8],
-      [9, 6],
-      [4, 4],
-      [9, 2],
-      [15, 8],
-      [19, 6],
-      [23, 4],
-      [28, 2],
-      [33, 4],
-      [37, 6],
-      [41, 3],
+      // Outer climb (mirrored)
+      [3, 8],
+      [60, 8],
+      [4, 5],
+      [59, 5],
+      [3, 2],
+      [60, 2],
+      // Inner climb (mirrored)
+      [16, 8],
+      [47, 8],
+      [17, 5],
       [46, 5],
-      [51, 3],
-      [56, 1],
-      [57, 7],
-      [24, 11],
-      [38, 11],
+      [16, 3],
+      [47, 3],
+      // Spine + arena
+      [30, 7],
+      [33, 7],
+      [28, 4],
+      [35, 4],
+      [20, 1],
+      [43, 1],
+      // Floor lane
+      [8, 11],
+      [55, 11],
     ],
     enemies: [
-      [5, 11, 4, 9, "drone"],
-      [25, 11, 22, 30, "drone"],
-      [38, 11, 34, 44, "drone"],
-      [8, 7, 3, 11, "climber"],
-      [23, 5, 3, 11, "climber"],
-      [55, 4, 1, 8, "climber"],
-      // mini-boss near the uplink ledge
-      [56, 1, 52, 60, "towerSentinel"],
+      // Floor drones — each pad is its own patrol
+      [4, 11, 1, 11, "drone"],
+      [30, 11, 18, 46, "drone"],
+      [56, 11, 53, 63, "drone"],
+      // Shaft climbers (mirrored)
+      [12, 6, 3, 11, "climber"],
+      [51, 6, 3, 11, "climber"],
+      // Tower Sentinel — locked to the continuous summit arena [14, 50)
+      [30, 1, 15, 48, "towerSentinel"],
     ],
   },
   {
@@ -804,6 +824,19 @@ function spawnEnemy(tx, ty, minA, maxA, typeName = "drone") {
   level.enemies.push(enemy);
 }
 
+/** Platform currently supporting an enemy's feet, if any. */
+function platformUnderEnemy(e, atX = e.x + e.w * 0.5) {
+  const feetY = e.y + e.h;
+  let best = null;
+  for (const p of level.platforms) {
+    if (p.fallen) continue;
+    if (atX < p.x || atX > p.x + p.w) continue;
+    if (Math.abs(p.y - feetY) > 4) continue;
+    if (!best || p.w > best.w) best = p;
+  }
+  return best;
+}
+
 /** Place grounded enemies so their feet sit on the nearest platform top below. */
 function snapEnemyToGround(e) {
   const midX = e.x + e.w * 0.5;
@@ -818,6 +851,18 @@ function snapEnemyToGround(e) {
     e.y = bestTop - e.h;
     e.minY = e.y;
     e.maxY = e.y + e.h;
+  }
+  // Keep patrol bounds on the supporting platform so grounded foes never walk into air.
+  const plat = platformUnderEnemy(e);
+  if (plat) {
+    const pad = 2;
+    e.minX = Math.max(e.minX, plat.x + pad);
+    e.maxX = Math.min(e.maxX, plat.x + plat.w - pad);
+    if (e.maxX - e.minX < e.w) {
+      e.minX = plat.x + pad;
+      e.maxX = plat.x + plat.w - pad;
+    }
+    e.x = Math.max(e.minX, Math.min(e.maxX - e.w, e.x));
   }
 }
 

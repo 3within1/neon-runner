@@ -41,7 +41,7 @@ Served over `http://127.0.0.1` / HTTPS, the app registers a service worker (`sw.
 ## Sectors
 
 1. **2084 GRID SPRINT** — classic gaps, optional high route, collapse pads  
-2. **2091 ASCENDER** — vertical climb; **wall cling / jump** online; **Tower Sentinel** mini-boss gates the exit  
+2. **2091 ASCENDER** — mirrored tower climb; **wall cling / jump** online; **Tower Sentinel** mini-boss on the summit arena  
 3. **2100 NEEDLE PATH** — thin platforms; **air jump** online  
 4. **2112 SWARM GRID** — dense swarm packs  
 5. **2118 OVERCLOCK SPAN** — armored climb, lasers + electric floors  
