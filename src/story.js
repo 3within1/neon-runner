@@ -1,0 +1,96 @@
+/**
+ * Short diegetic mission beats — keep copy terse; overlays + announces only.
+ * Sector ids/names must stay aligned with LEVELS / SECTOR_THEMES (asserted in game.js).
+ */
+
+/**
+ * @typedef {{
+ *   id: string,
+ *   name: string,
+ *   brief: string,
+ *   clear: string,
+ * }} SectorStory
+ */
+
+export const TITLE_STORY = {
+  eyebrow: "SECTOR 2084",
+  title: "NEON RUNNER",
+  /** Shown on the title overlay — premise, not a mechanics dump. */
+  tagline:
+    "Jack the stolen city core before lockdown seals the grid for good.",
+  button: "JACK IN",
+};
+
+export const RUN_STORY = {
+  death: "The grid swallowed you. Try again, runner.",
+  /** @param {number} score */
+  win: (score) =>
+    `City core jacked. Lights flicker back — for now. DATA ${String(score).padStart(4, "0")}.`,
+};
+
+export const BOSS_STORY = {
+  online: "CYBER-REX ONLINE. Vault guardian engaged.",
+  overclock: "CYBER-REX OVERCLOCKED. Core defense surging.",
+  down: "CYBER-REX DOWN. City core unlocked.",
+  exitLocked: "EXIT LOCKED. Defeat Cyber-Rex to jack the core.",
+};
+
+/** @type {readonly SectorStory[]} */
+export const SECTOR_STORIES = [
+  {
+    id: "grid-sprint",
+    name: "GRID SPRINT",
+    brief: "Surface streets. Pull the uplink key before the drones converge.",
+    clear: "Uplink key acquired. The sealed towers are next.",
+  },
+  {
+    id: "ascender",
+    name: "ASCENDER",
+    brief: "Climb the corp-locked uplink towers.",
+    clear: "Towers clear. Needle defense ahead.",
+  },
+  {
+    id: "needle-path",
+    name: "NEEDLE PATH",
+    brief: "Slip the thinned kill-grid meant for tourists.",
+    clear: "Needle grid cracked. Swarm response inbound.",
+  },
+  {
+    id: "swarm-grid",
+    name: "SWARM GRID",
+    brief: "Cut through the hive before it closes the lanes.",
+    clear: "Swarm broken. Only blackout remains.",
+  },
+  {
+    id: "blackout-run",
+    name: "BLACKOUT RUN",
+    brief: "Power dies. Climb to the vault door.",
+    clear: "Vault door open. Cyber-Rex waits in the core.",
+  },
+  {
+    id: "rex-core",
+    name: "REX CORE",
+    brief: "Vault guardian online. Stomp Cyber-Rex and jack the core.",
+    clear: "Core unlocked.",
+  },
+];
+
+export function getSectorStoryCount() {
+  return SECTOR_STORIES.length;
+}
+
+/** @param {number} index */
+export function getSectorStory(index) {
+  return SECTOR_STORIES[index] ?? SECTOR_STORIES[0];
+}
+
+/**
+ * Sector-clear overlay body: story beat + DATA tally + next uplink name.
+ * @param {number} index
+ * @param {number} score
+ * @param {{ name: string }} next
+ */
+export function formatSectorClearTagline(index, score, next) {
+  const beat = getSectorStory(index);
+  return `${beat.clear} Next uplink: ${next.name}. DATA ${String(score).padStart(4, "0")}.`;
+}

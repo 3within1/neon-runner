@@ -26,6 +26,12 @@ import {
   time,
 } from "./state.js";
 import {
+  getSectorStory,
+  getSectorStoryCount,
+  SECTOR_STORIES,
+  TITLE_STORY,
+} from "./story.js";
+import {
   announce,
   initLeaderboard,
   initMuteControl,
@@ -36,21 +42,36 @@ import {
 
 let transitionLocked = false;
 
-/** Catch silent drift between level defs, backdrop themes, and music patterns. */
+/** Catch silent drift between level defs, backdrop themes, music, and story beats. */
 function assertSectorTables() {
   const n = getLevelCount();
   const themes = getSectorThemeCount();
   const music = getMusicThemeCount();
-  if (themes !== n || music !== n) {
+  const stories = getSectorStoryCount();
+  if (themes !== n || music !== n || stories !== n) {
     console.error(
-      `[neon-runner] sector table length mismatch: levels=${n} sectorThemes=${themes} music=${music}`
+      `[neon-runner] sector table length mismatch: levels=${n} sectorThemes=${themes} music=${music} stories=${stories}`
     );
   }
-  const limit = Math.min(n, themes, SECTOR_THEMES.length, LEVELS.length);
+  const limit = Math.min(
+    n,
+    themes,
+    SECTOR_THEMES.length,
+    LEVELS.length,
+    SECTOR_STORIES.length
+  );
   for (let i = 0; i < limit; i++) {
     if (LEVELS[i].id !== SECTOR_THEMES[i].id || LEVELS[i].name !== SECTOR_THEMES[i].name) {
       console.error(
         `[neon-runner] sector identity mismatch at ${i}: level=${LEVELS[i].id}/${LEVELS[i].name} theme=${SECTOR_THEMES[i].id}/${SECTOR_THEMES[i].name}`
+      );
+    }
+    if (
+      LEVELS[i].id !== SECTOR_STORIES[i].id ||
+      LEVELS[i].name !== SECTOR_STORIES[i].name
+    ) {
+      console.error(
+        `[neon-runner] sector story mismatch at ${i}: level=${LEVELS[i].id}/${LEVELS[i].name} story=${SECTOR_STORIES[i].id}/${SECTOR_STORIES[i].name}`
       );
     }
   }
@@ -75,7 +96,8 @@ export function startGame() {
     setOverlay(false, "NEON RUNNER", "", "JACK IN");
     setTouchVisible(true);
     const def = getLevelDef(0);
-    announce(`Run started. Sector ${def.sector}: ${def.name}.`);
+    const beat = getSectorStory(0);
+    announce(`Run started. Sector ${def.sector}: ${def.name}. ${beat.brief}`);
     cueGameplayAudio("start");
   } finally {
     transitionLocked = false;
@@ -94,7 +116,8 @@ export function continueToNextSector() {
     setOverlay(false, "NEON RUNNER", "", "JACK IN");
     setTouchVisible(true);
     const def = getLevelDef(levelIndex);
-    announce(`Uplink established. Sector ${def.sector}: ${def.name}.`);
+    const beat = getSectorStory(levelIndex);
+    announce(`Uplink established. Sector ${def.sector}: ${def.name}. ${beat.brief}`);
     cueGameplayAudio("continue");
   } finally {
     transitionLocked = false;
@@ -169,10 +192,10 @@ export function initGame(touchEls) {
   updateHud();
   setOverlay(
     true,
-    "NEON RUNNER",
-    "Five sectors + Rex Core. Jack BLACKOUT RUN's door into the Cyber-Rex boss (8 stomps, chase/charge, +200). Packs +10, stomps +20/+40. Extra life every 500 DATA (max 9).",
-    "JACK IN",
-    "SECTOR 2084"
+    TITLE_STORY.title,
+    TITLE_STORY.tagline,
+    TITLE_STORY.button,
+    TITLE_STORY.eyebrow
   );
   setTouchVisible(false);
   requestAnimationFrame(frame);
