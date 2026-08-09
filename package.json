@@ -5,6 +5,14 @@
   "description": "Cyberpunk browser platformer",
   "scripts": {
     "start": "python3 -m http.server 5173 --bind 127.0.0.1",
-    "dev": "python3 -m http.server 5173 --bind 127.0.0.1"
+    "dev": "python3 -m http.server 5173 --bind 127.0.0.1",
+    "lint": "eslint .",
+    "check:version": "node scripts/check-version.mjs",
+    "test": "node scripts/check-version.mjs && node --test"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.0.0",
+    "eslint": "^9.0.0",
+    "globals": "^15.0.0"
   }
 }

@@ -29,7 +29,6 @@ import {
   player,
   practiceMode,
   replayDuration,
-  replayElapsed,
   sampleReplayAt,
   setPracticeMode,
   setShakeOffset,
