@@ -1,5 +1,5 @@
 /** Keep in sync with package.json "version" */
-export const APP_VERSION = "2.0.1";
+export const APP_VERSION = "2.0.2";
 
 export const LOGICAL_W = 960;
 export const LOGICAL_H = 540;
@@ -34,10 +34,21 @@ export const REPLAY_SAMPLE_HZ = 60;
 export const LOCKDOWN_SPEED_MULT = 1.35;
 export const LOCKDOWN_SCORE_MULT = 1.5;
 
+/** Sector index where wall cling / wall jump unlocks during a run */
+export const UNLOCK_WALL_CLING_SECTOR = 1;
 /** Sector index where air-jump unlocks during a run */
 export const UNLOCK_DOUBLE_JUMP_SECTOR = 2;
 /** Sector index where dash unlocks during a run */
 export const UNLOCK_DASH_SECTOR = 5;
+
+/** Max fall speed while holding into a wall */
+export const WALL_SLIDE_SPEED = 140;
+/** Horizontal kick when wall-jumping away from the wall */
+export const WALL_JUMP_VX = 340;
+/** Vertical kick on wall jump */
+export const WALL_JUMP_VY = -920;
+/** Brief cling grace after leaving wall contact (seconds) */
+export const WALL_CLING_GRACE = 0.14;
 
 /** DATA awarded per data pack collected */
 export const SCORE_PACK = 10;

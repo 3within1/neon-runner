@@ -75,6 +75,11 @@ export const player = {
   dashTimer: 0,
   dashDir: 1,
   canDash: false,
+  canWallCling: false,
+  /** -1 left wall, 1 right wall, 0 none */
+  wallDir: 0,
+  /** Remaining cling grace (seconds) */
+  wallCling: 0,
   anim: "idle",
   frame: 0,
   frameTimer: 0,

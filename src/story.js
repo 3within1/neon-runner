@@ -41,6 +41,7 @@ export const BOSS_STORY = {
 };
 
 export const ABILITY_STORY = {
+  wallCling: "WALL CLING ONLINE. Hold into a wall, then jump off.",
   doubleJump: "AIR JUMP ONLINE. Press jump again mid-air.",
   dash: "DASH ONLINE. Hold Shift / tap DASH to burst.",
 };
@@ -56,13 +57,13 @@ export const SECTOR_STORIES = [
   {
     id: "ascender",
     name: "ASCENDER",
-    brief: "Climb the corp-locked uplink towers. A sentinel guards the top.",
+    brief: "Climb the corp-locked uplink towers. Wall cling is live; a sentinel guards the top.",
     clear: "Towers clear. Needle defense ahead — air jump unlocked.",
   },
   {
     id: "needle-path",
     name: "NEEDLE PATH",
-    brief: "Slip the thinned kill-grid. Air jump is live.",
+    brief: "Slip the thinned kill-grid. Air jump is live. Wall cling still online.",
     clear: "Needle grid cracked. Swarm response inbound.",
   },
   {

@@ -18,6 +18,7 @@ App version is `package.json` / `APP_VERSION` in `src/constants.js` (keep them m
 
 - Move: ← → / A D
 - Jump: Space / W / ↑ (air jump from Needle Path onward)
+- Wall cling / jump: hold ←/→ into a wall, then jump (from Ascender onward)
 - Dash: Shift / K (from Blackout onward) or on-screen DASH
 - Pause: Esc
 - Mute: M (or AUDIO ON/OFF)
@@ -40,7 +41,7 @@ Served over `http://127.0.0.1` / HTTPS, the app registers a service worker (`sw.
 ## Sectors
 
 1. **2084 GRID SPRINT** — classic gaps, optional high route, collapse pads  
-2. **2091 ASCENDER** — vertical climb; **Tower Sentinel** mini-boss gates the exit  
+2. **2091 ASCENDER** — vertical climb; **wall cling / jump** online; **Tower Sentinel** mini-boss gates the exit  
 3. **2100 NEEDLE PATH** — thin platforms; **air jump** online  
 4. **2112 SWARM GRID** — dense swarm packs  
 5. **2118 OVERCLOCK SPAN** — armored climb, lasers + electric floors  

@@ -21,6 +21,11 @@ import {
   TILE,
   UNLOCK_DASH_SECTOR,
   UNLOCK_DOUBLE_JUMP_SECTOR,
+  UNLOCK_WALL_CLING_SECTOR,
+  WALL_CLING_GRACE,
+  WALL_JUMP_VX,
+  WALL_JUMP_VY,
+  WALL_SLIDE_SPEED,
 } from "./constants.js";
 import { W, H } from "./dom.js";
 import { input } from "./input.js";
@@ -94,6 +99,7 @@ import {
 } from "./meta.js";
 import { getSectorTheme } from "./sectorTheme.js";
 
+let abilityAnnouncedWall = false;
 let abilityAnnouncedDouble = false;
 let abilityAnnouncedDash = false;
 /** @type {null | { title: string, tagline: string, button: string, eyebrow?: string, outcome: 'won' | 'dead' }} */
@@ -116,8 +122,13 @@ export function setCheckpoint(x, y) {
 
 function syncAbilities() {
   const idx = levelIndex;
+  player.canWallCling = idx >= UNLOCK_WALL_CLING_SECTOR;
   player.maxAirJumps = idx >= UNLOCK_DOUBLE_JUMP_SECTOR ? 1 : 0;
   player.canDash = idx >= UNLOCK_DASH_SECTOR;
+  if (player.canWallCling && !abilityAnnouncedWall) {
+    abilityAnnouncedWall = true;
+    announce(ABILITY_STORY.wallCling);
+  }
   if (player.maxAirJumps > 0 && !abilityAnnouncedDouble) {
     abilityAnnouncedDouble = true;
     announce(ABILITY_STORY.doubleJump);
@@ -166,6 +177,8 @@ export function resetPlayer(at = checkpoint) {
   player.airJumps = player.maxAirJumps;
   player.dashCd = 0;
   player.dashTimer = 0;
+  player.wallDir = 0;
+  player.wallCling = 0;
   player.anim = "idle";
   player.frame = 0;
   player.frameTimer = 0;
@@ -198,6 +211,7 @@ export function resetRun(full = false, opts = {}) {
     setScore(0);
     setLives(startingLivesForMode());
     resetRunStats();
+    abilityAnnouncedWall = false;
     abilityAnnouncedDouble = false;
     abilityAnnouncedDash = false;
     pendingEnd = null;
@@ -304,7 +318,60 @@ function tryDash() {
   player.vy = Math.min(player.vy, 0);
   player.invuln = Math.max(player.invuln, DASH_DURATION * 0.85);
   player.facing = player.dashDir;
+  player.wallDir = 0;
+  player.wallCling = 0;
   sfx.dash();
+}
+
+function detectWallCling(dt) {
+  if (!player.canWallCling || player.onGround || player.dashTimer > 0) {
+    player.wallDir = 0;
+    player.wallCling = 0;
+    return;
+  }
+  const probe = 3;
+  let dir = 0;
+  for (const p of solidPlatforms()) {
+    const overlapY = player.y + player.h > p.y + 4 && player.y < p.y + p.h - 4;
+    if (!overlapY) continue;
+    if (
+      player.x + player.w >= p.x &&
+      player.x + player.w <= p.x + probe &&
+      input.right
+    ) {
+      dir = 1;
+      break;
+    }
+    if (
+      player.x <= p.x + p.w &&
+      player.x >= p.x + p.w - probe &&
+      input.left
+    ) {
+      dir = -1;
+      break;
+    }
+  }
+  if (dir !== 0) {
+    player.wallDir = dir;
+    player.wallCling = WALL_CLING_GRACE;
+  } else {
+    player.wallCling = Math.max(0, player.wallCling - dt);
+    if (player.wallCling <= 0) player.wallDir = 0;
+  }
+}
+
+function tryWallJump() {
+  if (player.wallCling <= 0 || player.wallDir === 0 || player.onGround) return false;
+  player.vy = WALL_JUMP_VY;
+  player.vx = -player.wallDir * WALL_JUMP_VX;
+  player.facing = -player.wallDir;
+  player.wallCling = 0;
+  player.wallDir = 0;
+  player.jumpBuffer = 0;
+  player.coyote = 0;
+  player.jumpCutExempt = false;
+  sfx.jump();
+  return true;
 }
 
 export function updatePlayer(dt) {
@@ -352,7 +419,9 @@ export function updatePlayer(dt) {
   input.jumpPressed = false;
 
   if (player.dashTimer <= 0 && player.jumpBuffer > 0) {
-    if (player.coyote > 0) {
+    if (tryWallJump()) {
+      /* wall jump consumed the buffer */
+    } else if (player.coyote > 0) {
       player.vy = JUMP_VELOCITY;
       player.onGround = false;
       player.coyote = 0;
@@ -377,6 +446,9 @@ export function updatePlayer(dt) {
 
   if (player.dashTimer <= 0) {
     player.vy = Math.min(MAX_FALL, player.vy + GRAVITY * dt);
+    if (player.wallCling > 0 && player.wallDir !== 0 && player.vy > 0) {
+      player.vy = Math.min(player.vy, WALL_SLIDE_SPEED);
+    }
   }
 
   player.prevX = player.x;
@@ -390,6 +462,7 @@ export function updatePlayer(dt) {
   player.onGround = false;
   player.y += player.vy * dt;
   resolveAxis(player, platforms, "y", player.prevY);
+  detectWallCling(dt);
 
   if (player.y > pitY()) {
     hitPlayer(true);
@@ -417,13 +490,15 @@ export function updatePlayer(dt) {
   }
 
   if (player.dashTimer > 0) player.anim = "run";
-  else if (!player.onGround) player.anim = player.vy < 0 ? "jump" : "fall";
+  else if (player.wallCling > 0 && player.wallDir !== 0 && !player.onGround) {
+    player.anim = "cling";
+  } else if (!player.onGround) player.anim = player.vy < 0 ? "jump" : "fall";
   else if (Math.abs(player.vx) > 20) player.anim = "run";
   else player.anim = "idle";
 
-  const speeds = { idle: 0.18, run: 0.08, jump: 0.12, fall: 0.12 };
+  const speeds = { idle: 0.18, run: 0.08, jump: 0.12, fall: 0.12, cling: 0.16 };
   player.frameTimer += dt;
-  if (player.frameTimer > speeds[player.anim]) {
+  if (player.frameTimer > (speeds[player.anim] || 0.12)) {
     player.frameTimer = 0;
     player.frame = (player.frame + 1) % 4;
   }

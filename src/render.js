@@ -675,6 +675,13 @@ function drawPlayer() {
     ctx.globalAlpha = 1;
   }
 
+  if (player.anim === "cling" && !reduceMotion) {
+    ctx.globalAlpha = 0.45;
+    ctx.fillStyle = skin.accent;
+    ctx.fillRect(10, -14, 3, 28);
+    ctx.globalAlpha = 1;
+  }
+
   if (player.onGround) {
     ctx.fillStyle = "rgba(0,0,0,0.35)";
     ctx.beginPath();
@@ -682,12 +689,18 @@ function drawPlayer() {
     ctx.fill();
   }
 
+  const clinging = player.anim === "cling";
   const runBob = player.anim === "run" ? Math.sin(player.frame * 1.6) * 2 : 0;
   const legSwing = player.anim === "run" ? Math.sin(player.frame * 1.6) * 0.5 : 0;
   const armSwing = player.anim === "run" ? Math.sin(player.frame * 1.6 + Math.PI) * 0.45 : 0;
-  const jumpStretch = player.anim === "jump" ? 1.08 : player.anim === "fall" ? 0.94 : 1;
+  const jumpStretch = player.anim === "jump" ? 1.08 : player.anim === "fall" || clinging ? 0.94 : 1;
 
   ctx.translate(0, runBob);
+  if (clinging) {
+    // Lean into the wall (facing already matches input into the wall).
+    ctx.rotate(0.12);
+    ctx.translate(2, 0);
+  }
   ctx.scale(1, jumpStretch);
 
   ctx.shadowColor = skin.accent;
