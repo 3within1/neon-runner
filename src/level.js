@@ -246,6 +246,7 @@ export const LEVELS = [
     width: 64,
     height: 14,
     spawn: [2, 11],
+    // Exit stands on the continuous summit arena (platform top y=2)
     exit: [58, 0],
     platforms: [
       [0, 12, 10, 2],
@@ -266,11 +267,13 @@ export const LEVELS = [
       [40, 4, 3, 1],
       [45, 6, 3, 1],
       [50, 4, 3, 1],
-      [54, 2, 6, 1],
+      // Continuous summit arena — wide enough for Tower Sentinel patrol
+      [48, 2, 14, 1],
       [56, 8, 3, 1],
       [44, 9, 3, 1],
       [16, 3, 2, 1, "collapse"],
-      [42, 2, 2, 1, "collapse"],
+      // Collapse sits below the arena approach, not on the boss ledge
+      [42, 5, 2, 1, "collapse"],
     ],
     hazards: [
       [10.15, 11.65, 1.7, 0.35],
@@ -307,8 +310,8 @@ export const LEVELS = [
       [8, 7, 3, 11, "climber"],
       [23, 5, 3, 11, "climber"],
       [55, 4, 1, 8, "climber"],
-      // mini-boss near the uplink ledge
-      [56, 1, 52, 60, "towerSentinel"],
+      // Mini-boss locked to the continuous summit arena [48, 62)
+      [54, 1, 49, 61, "towerSentinel"],
     ],
   },
   {
@@ -800,6 +803,19 @@ function spawnEnemy(tx, ty, minA, maxA, typeName = "drone") {
   level.enemies.push(enemy);
 }
 
+/** Platform currently supporting an enemy's feet, if any. */
+function platformUnderEnemy(e, atX = e.x + e.w * 0.5) {
+  const feetY = e.y + e.h;
+  let best = null;
+  for (const p of level.platforms) {
+    if (p.fallen) continue;
+    if (atX < p.x || atX > p.x + p.w) continue;
+    if (Math.abs(p.y - feetY) > 4) continue;
+    if (!best || p.w > best.w) best = p;
+  }
+  return best;
+}
+
 /** Place grounded enemies so their feet sit on the nearest platform top below. */
 function snapEnemyToGround(e) {
   const midX = e.x + e.w * 0.5;
@@ -814,6 +830,35 @@ function snapEnemyToGround(e) {
     e.y = bestTop - e.h;
     e.minY = e.y;
     e.maxY = e.y + e.h;
+  }
+  // Keep patrol bounds on the supporting platform so grounded foes never walk into air.
+  const plat = platformUnderEnemy(e);
+  if (plat) {
+    const pad = 2;
+    e.minX = Math.max(e.minX, plat.x + pad);
+    e.maxX = Math.min(e.maxX, plat.x + plat.w - pad);
+    if (e.maxX - e.minX < e.w) {
+      e.minX = plat.x + pad;
+      e.maxX = plat.x + plat.w - pad;
+    }
+    e.x = Math.max(e.minX, Math.min(e.maxX - e.w, e.x));
+  }
+}
+
+/** Assert every grounded enemy can stand across its full X patrol. */
+function assertGroundedPatrols() {
+  for (const e of level.enemies) {
+    if (!e.grounded || e.axis !== "x") continue;
+    const samples = [e.minX + 2, e.x + e.w * 0.5, e.maxX - 2];
+    for (const x of samples) {
+      const mid = Math.max(e.minX, Math.min(e.maxX, x));
+      const probe = { x: mid - e.w * 0.5, y: e.y, w: e.w, h: e.h };
+      if (!platformUnderEnemy(probe, mid)) {
+        throw new Error(
+          `Grounded ${e.type} patrol leaves solid floor in ${level.name} (sector ${level.sector}) at x=${mid}`
+        );
+      }
+    }
   }
 }
 
@@ -894,4 +939,5 @@ export function buildLevel(index = levelIndex) {
   });
   for (const e of def.enemies) spawnEnemy(...e);
   assertExitGrounded();
+  assertGroundedPatrols();
 }

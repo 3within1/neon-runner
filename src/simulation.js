@@ -439,6 +439,46 @@ function bossPhase(e) {
   return 3;
 }
 
+/** Top Y of a solid platform under a world X near the enemy's feet, if any. */
+function floorYUnder(e, atX) {
+  const feetY = e.y + e.h;
+  let best = null;
+  for (const p of level.platforms) {
+    if (p.fallen) continue;
+    if (atX < p.x || atX > p.x + p.w) continue;
+    // Prefer the platform the feet are already on / just above.
+    if (p.y < e.y - TILE) continue;
+    if (p.y > feetY + TILE * 0.5) continue;
+    if (best === null || p.y < best) best = p.y;
+  }
+  return best;
+}
+
+function hasFloorSupport(e, atX) {
+  return floorYUnder(e, atX) !== null;
+}
+
+/**
+ * Keep grounded enemies from walking off platform lips.
+ * Returns true if horizontal velocity was reversed at an edge.
+ */
+function constrainGroundedEnemy(e) {
+  if (!e.grounded || e.airborne) return false;
+  const lead = e.vx < 0 ? e.x + 6 : e.x + e.w - 6;
+  const mid = e.x + e.w * 0.5;
+  if (e.vx !== 0 && !hasFloorSupport(e, lead)) {
+    e.x = Math.max(e.minX, Math.min(e.maxX - e.w, e.x - Math.sign(e.vx) * 4));
+    e.vx = -Math.sign(e.vx || 1) * Math.abs(e.vx || e.baseSpeed || e.speed);
+    e.charging = 0;
+    const floor = floorYUnder(e, e.x + e.w * 0.5);
+    if (floor != null) e.y = floor - e.h;
+    return true;
+  }
+  const floor = floorYUnder(e, mid);
+  if (floor != null) e.y = floor - e.h;
+  return false;
+}
+
 function updateBossChase(e, dt) {
   const playerMid = player.x + player.w * 0.5;
   const enemyMid = e.x + e.w * 0.5;
@@ -476,16 +516,20 @@ function updateBossChase(e, dt) {
     setShake(0.3);
   }
 
-  // Phase 2/3 aerial slam
+  // Phase 2/3 aerial slam — stay inside arena X, land on floor under the boss.
   e.slamTimer = Math.max(0, e.slamTimer - dt);
   if (e.airborne) {
     e.vy += GRAVITY * 1.1 * dt;
     e.y += e.vy * dt;
-    e.x += Math.sign(dx) * chaseSpeed * 0.55 * dt;
-    e.x = Math.max(e.minX, Math.min(e.maxX - e.w, e.x));
-    const floorY = level.platforms
-      .filter((p) => !p.fallen && playerMid >= p.x && playerMid <= p.x + p.w)
-      .reduce((best, p) => (best === null || p.y < best ? p.y : best), null);
+    const nextX = e.x + Math.sign(dx) * chaseSpeed * 0.55 * dt;
+    const clampedX = Math.max(e.minX, Math.min(e.maxX - e.w, nextX));
+    // Only slide horizontally when the landing column still has floor.
+    if (hasFloorSupport({ ...e, x: clampedX }, clampedX + e.w * 0.5)) {
+      e.x = clampedX;
+    } else {
+      e.x = Math.max(e.minX, Math.min(e.maxX - e.w, e.x));
+    }
+    const floorY = floorYUnder(e, e.x + e.w * 0.5);
     const ground = floorY != null ? floorY : e.minY + e.h;
     if (e.y + e.h >= ground) {
       e.y = ground - e.h;
@@ -494,12 +538,15 @@ function updateBossChase(e, dt) {
       e.slamTimer = enraged ? 1.1 : 1.6;
       setShake(0.22);
       sfx.bossCharge();
+      constrainGroundedEnemy(e);
     }
     return;
   }
 
+  // Miniboss stays grounded on its arena ledge (no mid-air leaps off thin towers).
   if (
     inArena &&
+    !e.miniboss &&
     phase >= 2 &&
     e.slamTimer <= 0 &&
     e.charging <= 0 &&
@@ -538,6 +585,7 @@ function updateBossChase(e, dt) {
     e.vx = -Math.abs(e.vx);
     e.charging = 0;
   }
+  constrainGroundedEnemy(e);
 }
 
 function registerStomp(e) {
@@ -579,6 +627,7 @@ export function updateEnemies(dt) {
         e.x = e.maxX - e.w;
         e.vx = -Math.abs(e.speed);
       }
+      if (e.grounded) constrainGroundedEnemy(e);
     }
 
     if (e.type === "rex" || e.type === "rexBoss" || e.type === "towerSentinel") {
