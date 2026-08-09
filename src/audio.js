@@ -273,6 +273,21 @@ export const sfx = {
     tone(330, 0.16, "square", 0.09, null, 0.12);
     tone(524, 0.28, "triangle", 0.11, null, 0.24);
   },
+  dash() {
+    noiseBurst(0.1, 0.1, 1800);
+    tone(420, 0.12, "sawtooth", 0.09, 180);
+  },
+  doubleJump() {
+    tone(300, 0.08, "square", 0.09, 640);
+  },
+  checkpoint() {
+    tone(660, 0.07, "triangle", 0.08);
+    tone(990, 0.12, "triangle", 0.07, null, 0.06);
+  },
+  combo() {
+    tone(740, 0.05, "square", 0.07);
+    tone(990, 0.08, "square", 0.06, null, 0.04);
+  },
 };
 
 /*
@@ -426,7 +441,35 @@ const THEMES = [
     ],
     hatRate: 2.8,
   },
-  // 4 BLACKOUT RUN — dark gauntlet, heavier low end
+  // 4 OVERCLOCK SPAN — hot mid-climb pulse
+  {
+    bass: [
+      NOTE.a2, 0, NOTE.a2, NOTE.e3, NOTE.a2, 0, NOTE.g3, 0,
+      NOTE.a2, NOTE.a2, 0, NOTE.e3, NOTE.a2, 0, NOTE.c3, NOTE.e3,
+      NOTE.f3, 0, NOTE.f3, NOTE.c3, NOTE.f3, 0, NOTE.a3, 0,
+      NOTE.e3, NOTE.e3, 0, NOTE.b2, NOTE.e3, 0, NOTE.gs3, NOTE.e3,
+    ],
+    arps: [
+      NOTE.a3, NOTE.c4, NOTE.e4, NOTE.a4, NOTE.e4, NOTE.c5, NOTE.e4, NOTE.a4,
+      NOTE.g3, NOTE.b3, NOTE.e4, NOTE.g4, NOTE.e4, NOTE.b4, NOTE.e4, NOTE.g4,
+      NOTE.f3, NOTE.a3, NOTE.c4, NOTE.f4, NOTE.c4, NOTE.a4, NOTE.c4, NOTE.f4,
+      NOTE.e3, NOTE.gs3, NOTE.b3, NOTE.e4, NOTE.b3, NOTE.gs4, NOTE.b3, NOTE.e4,
+    ],
+    lead: [
+      NOTE.a4, 0, NOTE.e4, NOTE.a4, NOTE.c5, 0, NOTE.e5, 0,
+      NOTE.b4, NOTE.g4, 0, NOTE.e4, 0, NOTE.g4, NOTE.b4, 0,
+      NOTE.a4, NOTE.f4, NOTE.c5, 0, NOTE.a4, NOTE.f4, 0, NOTE.c5,
+      NOTE.gs4, 0, NOTE.e4, NOTE.b4, NOTE.e5, 0, 0, NOTE.b4,
+    ],
+    hats: [
+      1, 1, 0, 1, 1, 1, 0, 1,
+      1, 0, 1, 1, 1, 0, 1, 1,
+      1, 1, 0, 1, 1, 1, 0, 1,
+      1, 1, 1, 0, 1, 0, 1, 1,
+    ],
+    hatRate: 2.5,
+  },
+  // 5 BLACKOUT RUN — dark gauntlet, heavier low end
   {
     bass: [
       NOTE.a2, 0, NOTE.a2, NOTE.a2, 0, NOTE.e3, NOTE.a2, 0,
@@ -454,7 +497,7 @@ const THEMES = [
     ],
     hatRate: 2.0,
   },
-  // 5 REX CORE — boss arena stomp pulse
+  // 6 REX CORE — boss arena stomp pulse
   {
     bass: [
       NOTE.a2, NOTE.a2, 0, NOTE.a2, NOTE.e3, NOTE.a2, 0, NOTE.e3,

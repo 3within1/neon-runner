@@ -246,7 +246,18 @@ export function clearScores() {
 }
 
 /**
- * @param {{ score: number, coins: number, stomps: number, sectorIndex: number, sectorTotal: number, durationSec: number, outcome?: 'won' | 'dead' }} stats
+ * @param {{
+ *   score: number,
+ *   coins: number,
+ *   stomps: number,
+ *   sectorIndex: number,
+ *   sectorTotal: number,
+ *   durationSec: number,
+ *   outcome?: 'won' | 'dead',
+ *   deaths?: number,
+ *   maxCombo?: number,
+ *   mode?: string,
+ * }} stats
  */
 export function formatRunBreakdown(stats) {
   const sectorLabel = `${String(stats.sectorIndex + 1).padStart(2, "0")}/${String(stats.sectorTotal).padStart(2, "0")}`;
@@ -255,5 +266,9 @@ export function formatRunBreakdown(stats) {
   const clock = `${mins}:${String(secs).padStart(2, "0")}`;
   const packPts = stats.coins * SCORE_PACK;
   const killPts = Math.max(0, stats.score - packPts);
-  return `DATA ${String(stats.score).padStart(4, "0")} · PACKS ${stats.coins} (+${packPts}) · KILLS ${stats.stomps} (+${killPts}) · SECTOR ${sectorLabel} · TIME ${clock}`;
+  const mode =
+    stats.mode === "lockdown" ? "LOCKDOWN" : stats.mode === "timeAttack" ? "TRIAL" : "RUN";
+  const deaths = stats.deaths ?? 0;
+  const combo = stats.maxCombo ?? 0;
+  return `DATA ${String(stats.score).padStart(4, "0")} · PACKS ${stats.coins} (+${packPts}) · KILLS ${stats.stomps} (+${killPts}) · SECTOR ${sectorLabel} · TIME ${clock} · DEATHS ${deaths} · COMBO ${combo} · ${mode}`;
 }

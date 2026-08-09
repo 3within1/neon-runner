@@ -478,10 +478,150 @@ body {
   -webkit-user-select: none;
 }
 
+.touch-actions {
+  display: flex;
+  gap: 0.5rem;
+  pointer-events: auto;
+}
+
 #touch-jump {
   min-width: 5rem;
   color: var(--magenta);
   border-color: rgba(255, 43, 214, 0.55);
+}
+
+#touch-dash {
+  min-width: 4.5rem;
+  color: var(--amber);
+  border-color: rgba(255, 179, 71, 0.55);
+}
+
+.mode-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  justify-content: center;
+  margin: -0.35rem 0 1.1rem;
+}
+
+.mode-row[hidden] {
+  display: none !important;
+}
+
+.mode-btn,
+.trial-nav button,
+.bind-row,
+.skin-btn {
+  appearance: none;
+  border: 1px solid rgba(53, 240, 255, 0.45);
+  background: rgba(53, 240, 255, 0.08);
+  color: var(--text);
+  font-family: Orbitron, sans-serif;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  font-size: 0.62rem;
+  padding: 0.55rem 0.75rem;
+  cursor: pointer;
+}
+
+.mode-btn.ghost,
+.skin-btn {
+  background: transparent;
+  border-color: rgba(127, 145, 168, 0.45);
+  color: var(--muted);
+}
+
+.mode-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.mode-btn:hover:not(:disabled),
+.mode-btn:focus-visible,
+.skin-btn:hover:not(:disabled),
+.bind-row:hover,
+.trial-nav button:hover {
+  color: var(--cyan);
+  border-color: rgba(53, 240, 255, 0.85);
+}
+
+.mode-btn:focus-visible,
+.skin-btn:focus-visible,
+.bind-row:focus-visible {
+  outline: 2px solid var(--cyan);
+  outline-offset: 2px;
+}
+
+.skin-btn.active {
+  color: var(--cyan);
+  border-color: var(--cyan);
+  box-shadow: var(--glow-cyan);
+}
+
+.trial-label {
+  width: 100%;
+  font-size: 0.78rem;
+  color: var(--cyan);
+  letter-spacing: 0.06em;
+  margin-bottom: 0.25rem;
+}
+
+.trial-nav {
+  display: flex;
+  gap: 0.4rem;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+}
+
+.settings-panel {
+  text-align: left;
+  margin: -0.25rem 0 1rem;
+  max-width: 22rem;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.settings-panel[hidden] {
+  display: none !important;
+}
+
+.settings-title,
+.settings-block > p {
+  font-family: Orbitron, sans-serif;
+  font-size: 0.62rem;
+  letter-spacing: 0.28em;
+  color: var(--magenta);
+  margin-bottom: 0.45rem;
+  text-align: center;
+}
+
+.settings-block {
+  margin-bottom: 0.85rem;
+}
+
+.toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  color: var(--muted);
+  font-size: 0.78rem;
+  margin: 0.3rem 0;
+  cursor: pointer;
+}
+
+.skin-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  justify-content: center;
+}
+
+.bind-row {
+  display: block;
+  width: 100%;
+  margin: 0.25rem 0;
+  text-align: left;
 }
 
 .sr-only {

@@ -17,44 +17,55 @@ App version is `package.json` / `APP_VERSION` in `src/constants.js` (keep them m
 ## Controls
 
 - Move: ← → / A D
-- Jump: Space / W / ↑
-- Mute: M (or AUDIO ON/OFF in HUD / menus)
+- Jump: Space / W / ↑ (air jump from Needle Path onward)
+- Dash: Shift / K (from Blackout onward) or on-screen DASH
+- Pause: Esc
+- Mute: M (or AUDIO ON/OFF)
 - Start / restart / next sector: Enter, Space, or the on-screen button
 - Touch: on-screen controls while playing
-- Audio: procedural SFX + per-sector 8-bit theme during play; mute with **M** / AUDIO ON/OFF (preference saved)
-- Visuals: per-sector backdrop (palette/style from `sectorTheme.js`); sky/particle pulse follows the audio beat while music plays
-- High scores: local top-10 board on full clear or game over (initials saved in this browser); end-run breakdown; clear board
-- Scoring: data packs **+10** DATA, stomps **+20** DATA (HUD shows DATA / PACKS / KILLS). Weighted scoring uses a fresh local board key.
-- Extra lives: **+1** life every **500** DATA (soft cap **9**)
-- Story: short mission beats on title, sector start/clear, win, and Cyber-Rex announces (`story.js`)
+- Remap: Settings on the title / pause overlay
+
+## Modes
+
+- **JACK IN** — full campaign
+- **LOCKDOWN** — NG+ (faster enemies, 2 lives, 1.5× DATA); unlocks after one full clear
+- **TIME TRIAL** — single-sector race; best times saved locally
+- **Skins** — GRID default; SIGNAL at 500 DATA; EMBER on clear; LOCKDOWN skin on Lockdown clear
 
 ## Sectors
 
-1. **2084 GRID SPRINT** — classic gaps and drones  
+1. **2084 GRID SPRINT** — classic gaps, optional high route, collapse pads  
+2. **2091 ASCENDER** — vertical climb; **Tower Sentinel** mini-boss gates the exit  
+3. **2100 NEEDLE PATH** — thin platforms; **air jump** online  
+4. **2112 SWARM GRID** — dense swarm packs  
+5. **2118 OVERCLOCK SPAN** — armored climb, lasers + electric floors  
+6. **2125 BLACKOUT RUN** — finale gauntlet; **dash** online; climb to the vault door  
+7. **2126 REX CORE** — Cyber-Rex boss arena with armor-break / slam / overclock phases (exit locked until it falls)
 
-2. **2091 ASCENDER** — vertical climb; climber drones on shafts  
-3. **2100 NEEDLE PATH** — thin platforms, dense spikes, fast needle drones  
-4. **2112 SWARM GRID** — dense swarm packs on patrol lanes  
-5. **2125 BLACKOUT RUN** — finale gauntlet; climb to the exit door  
-6. **2126 REX CORE** — Cyber-Rex **boss arena** (8 stomps, aggressive chase/charge with mid-fight overclock, exit locked until it falls, +200 DATA)  
+## Features
 
-Clear an exit to uplink to the next sector. Score and lives carry over until a full reboot.
+- Checkpoints, collapsing platforms, electric floors, beat-synced laser gates
+- Combo stomps, hit-stop juice, death replay, screen crack on crash
+- Local top-10 board, end-run breakdown (deaths / combo / mode)
+- Accessibility: colorblind outlines, reduce-motion toggle
+- Procedural SFX + per-sector 8-bit themes; beat-linked backdrops
 
 ## Source layout
 
 | Module | Role |
 |---|---|
 | `main.js` | Entry bootstrap |
-| `game.js` | Loop, start/restart, wiring |
-| `simulation.js` | Player, combat, entities, camera |
+| `game.js` | Loop, start/restart, pause, modes |
+| `simulation.js` | Player, combat, hazards, camera |
 | `render.js` | Canvas drawing |
 | `level.js` | Level authoring |
-| `audio.js` | Procedural Web Audio SFX, per-sector theme loops, mute |
-| `sectorTheme.js` | Shared sector BPM / mood / backdrop identity |
+| `audio.js` | Procedural Web Audio SFX + themes |
+| `sectorTheme.js` | Shared sector BPM / mood / backdrop |
 | `story.js` | Title / sector / boss mission beats |
+| `meta.js` | Unlocks, skins, binds, best times |
 | `leaderboard.js` | Local top-10 high scores |
-| `input.js` | Keyboard / touch |
-| `ui.js` | HUD / overlay / a11y announcements |
+| `input.js` | Keyboard / touch / rebind |
+| `ui.js` | HUD / overlay / settings |
 | `state.js` | Shared mutable session state |
 | `physics.js` | Collision helpers |
 | `dom.js` | Canvas + DOM refs |

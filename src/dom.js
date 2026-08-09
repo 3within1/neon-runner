@@ -9,6 +9,7 @@ export const packsEl = document.querySelector("#packs b");
 export const killsEl = document.querySelector("#kills b");
 export const livesEl = document.querySelector("#lives b");
 export const sectorEl = document.querySelector("#sector b");
+export const comboEl = document.querySelector("#combo b");
 export const buildVersionEl = document.getElementById("build-version");
 export const muteBtn = document.getElementById("mute-btn");
 export const hudMuteBtn = document.getElementById("hud-mute-btn");
@@ -21,6 +22,9 @@ export const initialsInput = document.getElementById("initials-input");
 export const scoreSaveBtn = document.getElementById("score-save-btn");
 export const clearScoresBtn = document.getElementById("clear-scores-btn");
 export const runSummaryEl = document.getElementById("run-summary");
+export const modeRowEl = document.getElementById("mode-row");
+export const settingsPanelEl = document.getElementById("settings-panel");
+export const pauseActionsEl = document.getElementById("pause-actions");
 
 export let W = LOGICAL_W;
 export let H = LOGICAL_H;

@@ -1,21 +1,22 @@
 import {
   COLORS,
   SCORE_ARMORED,
+  SCORE_MINIBOSS,
   SCORE_REX,
   SCORE_REX_BOSS,
   SCORE_STOMP,
   TILE,
 } from "./constants.js";
 import { rect } from "./physics.js";
-import { level, levelIndex } from "./state.js";
+import { enemySpeedMult, level, levelIndex } from "./state.js";
 
 /**
  * Declarative level defs (tile units).
- * platforms/hazards: [tx, ty, tw, th]
+ * platforms: [tx, ty, tw, th] or [tx, ty, tw, th, "collapse"]
+ * hazards: [tx, ty, tw, th] | [tx, ty, tw, th, "spike"|"electric"|"laser", period?]
+ * checkpoints: [tx, ty]
  * coins: [tx, ty]
  * enemies: [tx, ty, minA, maxA] or [tx, ty, minA, maxA, type]
- *   type defaults to "drone". For axis "x" types, minA/maxA are tile X bounds;
- *   for "climber" (axis "y"), minA/maxA are tile Y bounds.
  */
 
 /** Per-type stats used by spawnEnemy / simulation / render. */
@@ -112,6 +113,26 @@ export const ENEMY_TYPES = {
     thruster: COLORS.cyan,
     radius: 4,
   },
+  /** Ascender mini-boss — gates the tower exit. */
+  towerSentinel: {
+    w: 64,
+    h: 56,
+    speed: 70,
+    hp: 4,
+    score: SCORE_MINIBOSS,
+    axis: "x",
+    bobAmp: 1,
+    bobSpeed: 4,
+    grounded: true,
+    boss: true,
+    chase: true,
+    miniboss: true,
+    fill: "#102028",
+    stroke: COLORS.cyan,
+    eye: COLORS.amber,
+    thruster: COLORS.lime,
+    radius: 6,
+  },
   /** Finale boss — chases, charges, gates the arena exit. */
   rexBoss: {
     w: 112,
@@ -132,6 +153,7 @@ export const ENEMY_TYPES = {
     radius: 4,
   },
 };
+
 export const LEVELS = [
   {
     id: "grid-sprint",
@@ -159,13 +181,27 @@ export const LEVELS = [
       [64, 7, 4, 1],
       [70, 5, 3, 1],
       [74, 9, 4, 1],
+      // optional high route (riskier, more packs)
+      [10, 2, 2, 1],
+      [15, 1, 2, 1],
+      [20, 2, 2, 1],
+      [26, 1, 2, 1],
+      [32, 2, 2, 1],
+      [38, 1, 2, 1],
+      [48, 2, 2, 1],
+      [54, 1, 2, 1],
+      [60, 2, 2, 1],
+      [24, 8, 2, 1, "collapse"],
+      [46, 8, 2, 1, "collapse"],
     ],
     hazards: [
       [14.15, 9.65, 1.7, 0.35],
       [26.15, 9.65, 1.7, 0.35],
       [36.15, 9.65, 3.7, 0.35],
       [58.2, 9.65, 3.6, 0.35],
+      [42, 9.2, 2, 0.2, "electric"],
     ],
+    checkpoints: [[40, 9], [62, 9]],
     coins: [
       [7, 6],
       [13, 4],
@@ -184,6 +220,16 @@ export const LEVELS = [
       [33, 9],
       [48, 9],
       [67, 9],
+      // high route packs
+      [10.5, 1],
+      [15.5, 0],
+      [20.5, 1],
+      [26.5, 0],
+      [32.5, 1],
+      [38.5, 0],
+      [48.5, 1],
+      [54.5, 0],
+      [60.5, 1],
     ],
     enemies: [
       [8, 9, 6, 12, "drone"],
@@ -207,12 +253,10 @@ export const LEVELS = [
       [22, 12, 8, 2],
       [34, 12, 10, 2],
       [48, 12, 16, 2],
-      // climb left
       [4, 9, 3, 1],
       [8, 7, 3, 1],
       [3, 5, 3, 1],
       [8, 3, 4, 1],
-      // mid air chain
       [14, 9, 2, 1],
       [18, 7, 2, 1],
       [22, 5, 3, 1],
@@ -225,13 +269,18 @@ export const LEVELS = [
       [54, 2, 6, 1],
       [56, 8, 3, 1],
       [44, 9, 3, 1],
+      [16, 3, 2, 1, "collapse"],
+      [42, 2, 2, 1, "collapse"],
     ],
     hazards: [
       [10.15, 11.65, 1.7, 0.35],
       [18.15, 11.65, 3.7, 0.35],
       [30.15, 11.65, 3.7, 0.35],
       [44.2, 11.65, 3.6, 0.35],
+      [24, 4.2, 2.5, 0.15, "laser", 1.4],
+      [48, 3.2, 2, 0.15, "laser", 1.1],
     ],
+    checkpoints: [[22, 11], [48, 11], [50, 3]],
     coins: [
       [5, 8],
       [9, 6],
@@ -255,10 +304,11 @@ export const LEVELS = [
       [5, 11, 4, 9, "drone"],
       [25, 11, 22, 30, "drone"],
       [38, 11, 34, 44, "drone"],
-      // vertical shafts (minA/maxA = tile Y)
       [8, 7, 3, 11, "climber"],
       [23, 5, 3, 11, "climber"],
       [55, 4, 1, 8, "climber"],
+      // mini-boss near the uplink ledge
+      [56, 1, 52, 60, "towerSentinel"],
     ],
   },
   {
@@ -278,7 +328,6 @@ export const LEVELS = [
       [40, 10, 6, 2],
       [50, 10, 4, 2],
       [58, 10, 14, 2],
-      // thin floaters
       [5, 7, 2, 1],
       [11, 5, 2, 1],
       [15, 7, 2, 1],
@@ -293,6 +342,15 @@ export const LEVELS = [
       [57, 5, 2, 1],
       [62, 3, 8, 1],
       [66, 7, 3, 1],
+      // optional upper needle lane
+      [7, 2, 2, 1],
+      [13, 1, 2, 1],
+      [21, 2, 2, 1],
+      [29, 1, 2, 1],
+      [35, 2, 2, 1],
+      [44, 1, 2, 1],
+      [18, 8, 2, 1, "collapse"],
+      [36, 8, 2, 1, "collapse"],
     ],
     hazards: [
       [6.15, 9.65, 2.7, 0.35],
@@ -302,7 +360,11 @@ export const LEVELS = [
       [36.15, 9.65, 3.7, 0.35],
       [46.2, 9.65, 3.6, 0.35],
       [54.2, 9.65, 3.6, 0.35],
+      [25, 5.2, 2, 0.12, "laser", 1.0],
+      [40, 3.2, 2.2, 0.12, "laser", 0.85],
+      [50, 9.2, 2, 0.2, "electric"],
     ],
+    checkpoints: [[23, 9], [40, 9], [58, 9]],
     coins: [
       [6, 6],
       [12, 4],
@@ -321,6 +383,12 @@ export const LEVELS = [
       [2, 9],
       [25, 9],
       [43, 9],
+      [7.5, 1],
+      [13.5, 0],
+      [21.5, 1],
+      [29.5, 0],
+      [35.5, 1],
+      [44.5, 0],
     ],
     enemies: [
       [11, 9, 9, 13, "needle"],
@@ -356,13 +424,18 @@ export const LEVELS = [
       [60, 3, 4, 1],
       [68, 6, 4, 1],
       [72, 8, 4, 1],
+      [30, 8, 2, 1, "collapse"],
+      [58, 8, 2, 1, "collapse"],
     ],
     hazards: [
       [16.15, 9.65, 1.7, 0.35],
       [32.15, 9.65, 1.7, 0.35],
       [50.15, 9.65, 1.7, 0.35],
       [64.2, 9.65, 1.6, 0.35],
+      [20, 9.2, 3, 0.2, "electric"],
+      [44, 5.2, 2.5, 0.12, "laser", 1.2],
     ],
+    checkpoints: [[18, 9], [34, 9], [52, 9]],
     coins: [
       [9, 6],
       [15, 4],
@@ -396,13 +469,91 @@ export const LEVELS = [
     ],
   },
   {
+    id: "overclock-span",
+    sector: "2118",
+    name: "OVERCLOCK SPAN",
+    width: 70,
+    height: 14,
+    spawn: [2, 11],
+    exit: [64, 1],
+    platforms: [
+      [0, 12, 10, 2],
+      [12, 12, 6, 2],
+      [22, 12, 8, 2],
+      [34, 12, 8, 2],
+      [46, 12, 8, 2],
+      [58, 12, 12, 2],
+      [4, 9, 3, 1],
+      [9, 7, 3, 1],
+      [14, 5, 3, 1],
+      [19, 8, 3, 1],
+      [24, 6, 3, 1],
+      [28, 3, 3, 1],
+      [33, 7, 3, 1],
+      [38, 4, 3, 1],
+      [42, 8, 3, 1],
+      [47, 5, 3, 1],
+      [52, 3, 3, 1],
+      [56, 6, 3, 1],
+      [60, 3, 6, 1],
+      [62, 8, 3, 1],
+      [16, 9, 2, 1, "collapse"],
+      [30, 9, 2, 1, "collapse"],
+      [44, 9, 2, 1, "collapse"],
+      [50, 9, 2, 1, "collapse"],
+    ],
+    hazards: [
+      [10.15, 11.65, 1.7, 0.35],
+      [18.15, 11.65, 3.7, 0.35],
+      [30.15, 11.65, 3.7, 0.35],
+      [42.15, 11.65, 3.7, 0.35],
+      [54.2, 11.65, 3.6, 0.35],
+      [20, 5.2, 2.2, 0.12, "laser", 0.9],
+      [36, 3.2, 2.5, 0.12, "laser", 1.05],
+      [48, 4.2, 2, 0.12, "laser", 0.8],
+      [26, 11.2, 2.5, 0.2, "electric"],
+      [50, 11.2, 2.5, 0.2, "electric"],
+    ],
+    checkpoints: [[22, 11], [34, 11], [46, 11], [58, 11]],
+    coins: [
+      [5, 8],
+      [10, 6],
+      [15, 4],
+      [20, 7],
+      [25, 5],
+      [29, 2],
+      [34, 6],
+      [39, 3],
+      [43, 7],
+      [48, 4],
+      [53, 2],
+      [57, 5],
+      [62, 2],
+      [14, 11],
+      [38, 11],
+      [56, 11],
+    ],
+    enemies: [
+      [6, 11, 4, 9, "armored"],
+      [16, 11, 12, 18, "drone"],
+      [26, 11, 22, 30, "armored"],
+      [38, 11, 34, 42, "needle"],
+      [50, 11, 46, 54, "armored"],
+      [10, 6, 4, 11, "climber"],
+      [25, 5, 3, 11, "climber"],
+      [40, 3, 2, 8, "climber"],
+      [29, 2, 28, 31, "needle"],
+      [53, 2, 52, 55, "swarm"],
+      [61, 2, 60, 64, "armored"],
+    ],
+  },
+  {
     id: "blackout-run",
     sector: "2125",
     name: "BLACKOUT RUN",
     width: 96,
     height: 14,
     spawn: [2, 10],
-    // Climb to the exit door; uplink opens into the Cyber-Rex arena.
     exit: [92, 1],
     platforms: [
       [0, 12, 8, 2],
@@ -414,7 +565,6 @@ export const LEVELS = [
       [65, 12, 6, 2],
       [75, 12, 8, 2],
       [86, 12, 10, 2],
-      // early climb
       [3, 9, 3, 1],
       [7, 7, 2, 1],
       [11, 5, 3, 1],
@@ -422,7 +572,6 @@ export const LEVELS = [
       [20, 4, 3, 1],
       [25, 6, 3, 1],
       [29, 3, 3, 1],
-      // mid gauntlet
       [34, 8, 3, 1],
       [38, 5, 2, 1],
       [42, 7, 3, 1],
@@ -430,7 +579,6 @@ export const LEVELS = [
       [50, 6, 2, 1],
       [54, 4, 3, 1],
       [58, 8, 3, 1],
-      // late climb to exit door
       [64, 5, 3, 1],
       [68, 7, 2, 1],
       [72, 4, 3, 1],
@@ -439,6 +587,9 @@ export const LEVELS = [
       [84, 5, 3, 1],
       [88, 3, 6, 1],
       [90, 8, 3, 1],
+      [18, 10, 2, 1, "collapse"],
+      [40, 10, 2, 1, "collapse"],
+      [70, 10, 2, 1, "collapse"],
     ],
     hazards: [
       [8.15, 11.65, 2.7, 0.35],
@@ -449,7 +600,13 @@ export const LEVELS = [
       [61.2, 11.65, 3.6, 0.35],
       [71.2, 11.65, 3.6, 0.35],
       [83.2, 11.65, 2.6, 0.35],
+      [22, 3.2, 2.2, 0.12, "laser", 0.95],
+      [48, 2.2, 2.5, 0.12, "laser", 0.8],
+      [78, 3.2, 2, 0.12, "laser", 0.75],
+      [34, 11.2, 3, 0.2, "electric"],
+      [66, 11.2, 3, 0.2, "electric"],
     ],
+    checkpoints: [[20, 11], [42, 11], [65, 11], [86, 11]],
     coins: [
       [4, 8],
       [8, 6],
@@ -503,18 +660,16 @@ export const LEVELS = [
     width: 40,
     height: 14,
     spawn: [2, 10],
-    // Exit on the arena floor; gated until Cyber-Rex falls.
     exit: [34, 10],
     platforms: [
-      // boss arena floor
       [0, 12, 40, 2],
-      // stomp ledges
       [8, 8, 3, 1],
       [16, 9, 3, 1],
       [24, 8, 3, 1],
       [30, 9, 2, 1],
     ],
-    hazards: [],
+    hazards: [[18, 11.2, 4, 0.2, "electric"]],
+    checkpoints: [[4, 11]],
     coins: [
       [9, 7],
       [17, 8],
@@ -524,10 +679,7 @@ export const LEVELS = [
       [20, 11],
       [28, 11],
     ],
-    enemies: [
-      // finale boss — Cyber-Rex owns the arena
-      [18, 10.25, 4, 33, "rexBoss"],
-    ],
+    enemies: [[18, 10.25, 4, 33, "rexBoss"]],
   },
 ];
 
@@ -542,17 +694,37 @@ export function getLevelDef(index = levelIndex) {
   return LEVELS[index];
 }
 
-function addPlatform(tx, ty, tw, th) {
-  level.platforms.push(rect(tx * TILE, ty * TILE, tw * TILE, th * TILE));
+function addPlatform(tx, ty, tw, th, kind = "solid") {
+  const p = rect(tx * TILE, ty * TILE, tw * TILE, th * TILE);
+  p.kind = kind === "collapse" ? "collapse" : "solid";
+  p.collapseTimer = 0;
+  p.respawnTimer = 0;
+  p.fallen = false;
+  p.shake = 0;
+  level.platforms.push(p);
 }
 
-function addHazard(tx, ty, tw, th) {
+function addHazard(tx, ty, tw, th, kind = "spike", period = 1.2) {
   const hit = rect(tx * TILE, ty * TILE, tw * TILE, th * TILE);
+  hit.kind = kind || "spike";
+  hit.period = period;
+  hit.phase = (tx * 0.37 + ty * 0.19) % 1;
+  hit.on = true;
   hit.drawX = (tx - 0.15) * TILE;
   hit.drawY = (ty - 0.15) * TILE;
   hit.drawW = (tw + 0.3) * TILE;
   hit.drawH = (th + 0.15) * TILE;
   level.hazards.push(hit);
+}
+
+function addCheckpoint(tx, ty) {
+  level.checkpoints.push({
+    x: tx * TILE,
+    y: ty * TILE,
+    w: TILE,
+    h: TILE,
+    activated: false,
+  });
 }
 
 function spawnEnemy(tx, ty, minA, maxA, typeName = "drone") {
@@ -570,11 +742,13 @@ function spawnEnemy(tx, ty, minA, maxA, typeName = "drone") {
     );
   }
 
+  const speed = def.speed * enemySpeedMult;
   const enemy = {
     type: typeName,
     axis: def.axis,
     grounded: !!def.grounded,
     boss: !!def.boss,
+    miniboss: !!def.miniboss,
     chase: !!def.chase,
     x: tx * TILE,
     y: ty * TILE,
@@ -586,7 +760,8 @@ function spawnEnemy(tx, ty, minA, maxA, typeName = "drone") {
     maxX: def.axis === "x" ? max : tx * TILE + def.w,
     minY: def.axis === "y" ? min : ty * TILE,
     maxY: def.axis === "y" ? max : ty * TILE + def.h,
-    speed: def.speed,
+    speed,
+    baseSpeed: speed,
     hp: def.hp,
     maxHp: def.hp,
     score: def.score,
@@ -605,14 +780,17 @@ function spawnEnemy(tx, ty, minA, maxA, typeName = "drone") {
     chargeCd: 0,
     engaged: false,
     enrageAnnounced: false,
+    phaseAnnounced: 1,
+    slamTimer: 0,
+    airborne: false,
   };
 
   if (def.axis === "y") {
     enemy.y = Math.max(enemy.minY, Math.min(enemy.maxY - enemy.h, enemy.y));
-    enemy.vy = def.speed;
+    enemy.vy = speed;
   } else {
     enemy.x = Math.max(enemy.minX, Math.min(enemy.maxX - enemy.w, enemy.x));
-    enemy.vx = def.speed;
+    enemy.vx = speed;
   }
 
   if (def.grounded) {
@@ -627,6 +805,7 @@ function snapEnemyToGround(e) {
   const midX = e.x + e.w * 0.5;
   let bestTop = null;
   for (const p of level.platforms) {
+    if (p.fallen) continue;
     if (midX < p.x || midX > p.x + p.w) continue;
     if (p.y < e.y - TILE) continue;
     if (bestTop === null || p.y < bestTop) bestTop = p.y;
@@ -640,7 +819,6 @@ function snapEnemyToGround(e) {
 
 /** World-space AABB including bob offset (shared by combat + draw). */
 export function enemyBody(e) {
-  // Grounded units keep a stable feet-aligned hitbox; motion is visual-only.
   if (e.grounded) {
     return { x: e.x, y: e.y, w: e.w, h: e.h };
   }
@@ -661,11 +839,16 @@ export function getLivingBoss() {
   return level.enemies.find((e) => e.boss && e.alive) || null;
 }
 
+export function solidPlatforms() {
+  return level.platforms.filter((p) => !p.fallen);
+}
+
 function assertExitGrounded() {
   const exit = level.exit;
   const feetY = exit.y + exit.h;
   const grounded = level.platforms.some(
     (p) =>
+      !p.fallen &&
       Math.abs(p.y - feetY) < 0.5 &&
       exit.x + exit.w > p.x &&
       exit.x < p.x + p.w
@@ -695,9 +878,11 @@ export function buildLevel(index = levelIndex) {
   level.hazards = [];
   level.coins = [];
   level.enemies = [];
+  level.checkpoints = [];
 
   for (const p of def.platforms) addPlatform(...p);
   for (const h of def.hazards) addHazard(...h);
+  for (const c of def.checkpoints || []) addCheckpoint(...c);
   def.coins.forEach(([tx, ty], i) => {
     level.coins.push({
       x: tx * TILE + 14,
