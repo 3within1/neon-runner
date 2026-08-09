@@ -93,6 +93,8 @@ let onResume = null;
 let onAbort = null;
 let mediaRefresh = null;
 let trialSector = 0;
+/** Where SETTINGS should return when DONE is pressed */
+let settingsReturn = "title";
 
 export function updateHud() {
   scoreEl.textContent = String(score).padStart(4, "0");
@@ -603,6 +605,7 @@ function renderSettings() {
 }
 
 function openSettings() {
+  settingsReturn = state === "paused" ? "paused" : "title";
   setState("settings");
   setModeRowVisible(false);
   setSettingsVisible(true);
@@ -617,6 +620,11 @@ function openSettings() {
 function closeSettings() {
   startBtn.hidden = false;
   setSettingsVisible(false);
+  if (settingsReturn === "paused") {
+    setState("paused");
+    showPauseOverlay();
+    return;
+  }
   setState("title");
   showTitleModes();
 }
