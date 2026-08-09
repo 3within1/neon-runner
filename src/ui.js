@@ -6,6 +6,7 @@ import {
   killsEl,
   livesEl,
   sectorEl,
+  timerEl,
   comboEl,
   buildVersionEl,
   muteBtn,
@@ -23,6 +24,9 @@ import {
   modeRowEl,
   settingsPanelEl,
   pauseActionsEl,
+  bestClearEl,
+  sectorSelectEl,
+  sectorButtonsEl,
 } from "./dom.js";
 import { isAudioAvailable, isMuted, toggleMute, unlockAudio, sfx } from "./audio.js";
 import { APP_VERSION } from "./constants.js";
@@ -41,8 +45,10 @@ import {
   considerScoreUnlocks,
   formatClock,
   getActiveSkin,
+  getBestClearTime,
   getMeta,
   getSectorBestTime,
+  getUnlockedSector,
   RUNNER_SKINS,
   saveMeta,
   setSkin,
@@ -56,6 +62,7 @@ import {
 import {
   combo,
   preferTouch,
+  practiceMode,
   score,
   lives,
   state,
@@ -85,7 +92,7 @@ import {
 /** @type {PendingScore | null} */
 let pendingScore = null;
 let announcedScoreReset = false;
-/** @type {null | ((mode: 'normal' | 'lockdown' | 'timeAttack', sector?: number) => void)} */
+/** @type {null | ((mode: 'normal' | 'lockdown' | 'timeAttack', sector?: number, practice?: boolean) => void)} */
 let onModeStart = null;
 /** @type {null | (() => void)} */
 let onResume = null;
@@ -93,6 +100,8 @@ let onResume = null;
 let onAbort = null;
 let mediaRefresh = null;
 let trialSector = 0;
+/** Campaign start sector selected on the title screen */
+let campaignSector = 0;
 /** Where SETTINGS should return when DONE is pressed */
 let settingsReturn = "title";
 
@@ -104,6 +113,7 @@ export function updateHud() {
   if (sectorEl) {
     sectorEl.textContent = `${String(levelIndex + 1).padStart(2, "0")}/${String(getLevelCount()).padStart(2, "0")}`;
   }
+  if (timerEl) timerEl.textContent = formatClock(runElapsed);
   if (comboEl) {
     const wrap = comboEl.parentElement;
     if (combo > 1) {
@@ -120,6 +130,68 @@ export function updateHud() {
       `DATA ${score}, ${runCoins} packs, ${runStomps} kills`
     );
   }
+}
+
+export function syncBestClear() {
+  if (!bestClearEl) return;
+  const best = getBestClearTime();
+  if (best == null) {
+    bestClearEl.hidden = true;
+    bestClearEl.textContent = "";
+    return;
+  }
+  bestClearEl.hidden = false;
+  bestClearEl.textContent = `BEST CLEAR ${formatClock(best)}`;
+}
+
+function clampCampaignSector() {
+  const unlocked = Math.min(getLevelCount() - 1, getUnlockedSector());
+  campaignSector = Math.max(0, Math.min(unlocked, campaignSector));
+}
+
+/** Selected campaign start sector on the title screen (0-based). */
+export function getCampaignSector() {
+  clampCampaignSector();
+  return campaignSector;
+}
+
+export function renderSectorSelect() {
+  if (!sectorButtonsEl || !sectorSelectEl) return;
+  clampCampaignSector();
+  const unlocked = Math.min(getLevelCount() - 1, getUnlockedSector());
+  sectorButtonsEl.replaceChildren();
+  for (let i = 0; i < getLevelCount(); i++) {
+    const def = getLevelDef(i);
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "sector-btn";
+    btn.textContent = String(i + 1).padStart(2, "0");
+    btn.disabled = i > unlocked;
+    btn.title = btn.disabled
+      ? `Sector ${def.sector}: ${def.name} (locked)`
+      : `Start from sector ${def.sector}: ${def.name}`;
+    btn.setAttribute(
+      "aria-label",
+      btn.disabled
+        ? `Sector ${i + 1} locked: ${def.name}`
+        : `Start sector ${i + 1}: ${def.name}`
+    );
+    if (i === campaignSector) btn.classList.add("is-selected");
+    btn.addEventListener("click", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (btn.disabled) return;
+      campaignSector = i;
+      renderSectorSelect();
+      sfx.ui();
+    });
+    sectorButtonsEl.appendChild(btn);
+  }
+}
+
+function setSectorSelectVisible(show) {
+  if (sectorSelectEl) sectorSelectEl.hidden = !show;
+  if (show) renderSectorSelect();
 }
 
 export function announce(text) {
@@ -407,9 +479,10 @@ function setPauseActionsVisible(show) {
 function renderModeRow() {
   if (!modeRowEl) return;
   const meta = getMeta();
+  clampCampaignSector();
   modeRowEl.replaceChildren();
 
-  const mk = (label, mode, disabled = false, title = "") => {
+  const mk = (label, mode, disabled = false, title = "", practice = false) => {
     const btn = document.createElement("button");
     btn.type = "button";
     btn.className = "mode-btn";
@@ -420,15 +493,24 @@ function renderModeRow() {
       e.preventDefault();
       e.stopPropagation();
       if (mode === "timeAttack") {
+        setSectorSelectVisible(false);
         renderTrialPicker();
         return;
       }
-      onModeStart?.(mode, 0);
+      if (practice) {
+        onModeStart?.(mode, getLevelCount() - 1, true);
+        return;
+      }
+      if (mode === "lockdown") {
+        onModeStart?.(mode, 0, false);
+        return;
+      }
+      onModeStart?.(mode, campaignSector, false);
     });
     modeRowEl.appendChild(btn);
   };
 
-  mk("JACK IN", "normal");
+  mk("JACK IN", "normal", false, `Start from sector ${campaignSector + 1}`);
   mk(
     "LOCKDOWN",
     "lockdown",
@@ -436,6 +518,14 @@ function renderModeRow() {
     meta.hasCleared ? "Harder NG+ run" : "Unlock by clearing the grid once"
   );
   mk("TIME TRIAL", "timeAttack");
+  const rexUnlocked = getUnlockedSector() >= getLevelCount() - 1 || meta.hasCleared;
+  mk(
+    "REX PRACTICE",
+    "normal",
+    !rexUnlocked,
+    rexUnlocked ? "Drill the Cyber-Rex arena" : "Unlock by reaching REX CORE",
+    true
+  );
 
   const settingsBtn = document.createElement("button");
   settingsBtn.type = "button";
@@ -495,6 +585,8 @@ function renderTrialPicker() {
   back.addEventListener("click", (e) => {
     e.stopPropagation();
     renderModeRow();
+    setSectorSelectVisible(true);
+    syncBestClear();
   });
   modeRowEl.appendChild(back);
 }
@@ -608,6 +700,8 @@ function openSettings() {
   settingsReturn = state === "paused" ? "paused" : "title";
   setState("settings");
   setModeRowVisible(false);
+  setSectorSelectVisible(false);
+  if (bestClearEl) bestClearEl.hidden = true;
   setSettingsVisible(true);
   setPauseActionsVisible(false);
   setLeaderboardVisible(false);
@@ -634,6 +728,8 @@ export function showTitleModes() {
   setPauseActionsVisible(false);
   setSettingsVisible(false);
   setModeRowVisible(true);
+  syncBestClear();
+  setSectorSelectVisible(true);
   renderModeRow();
   setOverlay(
     true,
@@ -649,6 +745,8 @@ export function showTitleModes() {
 export function showPauseOverlay() {
   startBtn.hidden = false;
   setModeRowVisible(false);
+  setSectorSelectVisible(false);
+  if (bestClearEl) bestClearEl.hidden = true;
   setSettingsVisible(false);
   setLeaderboardVisible(false);
   setScoreEntryVisible(false);
@@ -687,7 +785,7 @@ export function showPauseOverlay() {
 
 /**
  * @param {{
- *   onMode: (mode: 'normal' | 'lockdown' | 'timeAttack', sector?: number) => void,
+ *   onMode: (mode: 'normal' | 'lockdown' | 'timeAttack', sector?: number, practice?: boolean) => void,
  *   onResume: () => void,
  *   onAbort: () => void,
  *   refreshMedia?: () => void,
@@ -698,6 +796,9 @@ export function initMetaUi(handlers) {
   onResume = handlers.onResume;
   onAbort = handlers.onAbort;
   mediaRefresh = handlers.refreshMedia || null;
+  clampCampaignSector();
+  syncBestClear();
+  renderSectorSelect();
 
   setRebindListener((action, code) => {
     if (action && code) {
@@ -721,6 +822,24 @@ export function initMetaUi(handlers) {
  */
 export function presentRunEnd(outcome, title, tagline, buttonLabel, eyebrow) {
   const snap = snapshotRun(outcome);
+
+  if (practiceMode) {
+    pendingScore = null;
+    setModeRowVisible(true);
+    renderModeRow();
+    setSectorSelectVisible(false);
+    if (bestClearEl) bestClearEl.hidden = true;
+    setPauseActionsVisible(false);
+    setSettingsVisible(false);
+    startBtn.hidden = false;
+    setScoreEntryVisible(false);
+    setRunSummary("");
+    setLeaderboardVisible(false);
+    setOverlay(true, title, tagline, buttonLabel, eyebrow);
+    announce(`${title}. ${tagline}`);
+    return;
+  }
+
   considerScoreUnlocks(snap.score);
   const breakdown = formatRunBreakdown({
     score: snap.score,
@@ -749,6 +868,8 @@ export function presentRunEnd(outcome, title, tagline, buttonLabel, eyebrow) {
 
   setModeRowVisible(outcome === "won" || outcome === "dead");
   if (modeRowEl && (outcome === "won" || outcome === "dead")) renderModeRow();
+  setSectorSelectVisible(false);
+  syncBestClear();
   setPauseActionsVisible(false);
   setSettingsVisible(false);
   startBtn.hidden = false;
@@ -780,7 +901,8 @@ export function setOverlay(show, title, tagline, buttonLabel, eyebrow) {
   syncMuteButton();
 
   if (show) {
-    const showBoard = state === "title" || state === "dead" || state === "won";
+    const showBoard =
+      !practiceMode && (state === "title" || state === "dead" || state === "won");
     if (state !== "paused" && state !== "settings") {
       setLeaderboardVisible(showBoard);
     }
@@ -790,6 +912,8 @@ export function setOverlay(show, title, tagline, buttonLabel, eyebrow) {
     }
     if (state === "title") {
       setModeRowVisible(true);
+      syncBestClear();
+      setSectorSelectVisible(true);
       if (modeRowEl && !modeRowEl.childElementCount) renderModeRow();
     }
 
@@ -805,6 +929,7 @@ export function setOverlay(show, title, tagline, buttonLabel, eyebrow) {
     setLeaderboardVisible(false);
     setRunSummary("");
     setModeRowVisible(false);
+    setSectorSelectVisible(false);
     setSettingsVisible(false);
     setPauseActionsVisible(false);
     startBtn.hidden = false;

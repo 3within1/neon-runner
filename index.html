@@ -3,10 +3,15 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#07040f" />
+    <meta name="description" content="NEON RUNNER — cyberpunk browser platformer" />
     <meta
       http-equiv="Content-Security-Policy"
-      content="default-src 'self'; style-src 'self' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; script-src 'self'"
+      content="default-src 'self'; style-src 'self' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; script-src 'self'; worker-src 'self'; manifest-src 'self'; img-src 'self' data:"
     />
+    <link rel="manifest" href="manifest.webmanifest" />
+    <link rel="icon" href="assets/icon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="assets/icon-192.png" />
     <title>NEON RUNNER</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -14,7 +19,7 @@
       href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Share+Tech+Mono&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="src/style.css?v=2.0.0" />
+    <link rel="stylesheet" href="src/style.css?v=2.0.1" />
   </head>
   <body>
     <div id="app">
@@ -23,6 +28,7 @@
           <div class="brand">NEON RUNNER</div>
           <div class="stats">
             <span id="sector">STAGE <b>01/07</b></span>
+            <span id="timer">TIME <b>0:00.00</b></span>
             <span id="score">DATA <b>0000</b></span>
             <span id="packs">PACKS <b>00</b></span>
             <span id="kills">KILLS <b>00</b></span>
@@ -55,7 +61,12 @@
             <p class="eyebrow">SECTOR 2084</p>
             <h1 id="overlay-title">NEON RUNNER</h1>
             <p class="tagline">Jack the stolen city core before lockdown seals the grid for good.</p>
+            <p id="best-clear" class="best-clear" hidden></p>
             <div id="mode-row" class="mode-row"></div>
+            <div id="sector-select" class="sector-select" hidden>
+              <p class="sector-select-title">START SECTOR</p>
+              <div id="sector-buttons" class="sector-buttons"></div>
+            </div>
             <div id="pause-actions" class="mode-row" hidden></div>
             <div id="settings-panel" class="settings-panel" hidden></div>
             <div id="score-entry" class="score-entry" hidden>
@@ -103,6 +114,6 @@
       </div>
     </div>
     <p id="status-live" class="sr-only" aria-live="assertive"></p>
-    <script type="module" src="src/main.js?v=2.0.0"></script>
+    <script type="module" src="src/main.js?v=2.0.1"></script>
   </body>
 </html>

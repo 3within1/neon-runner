@@ -27,10 +27,15 @@ App version is `package.json` / `APP_VERSION` in `src/constants.js` (keep them m
 
 ## Modes
 
-- **JACK IN** — full campaign
+- **JACK IN** — full campaign (pick an unlocked start sector on the title screen)
 - **LOCKDOWN** — NG+ (faster enemies, 2 lives, 1.5× DATA); unlocks after one full clear
 - **TIME TRIAL** — single-sector race; best times saved locally
+- **REX PRACTICE** — Cyber-Rex arena drill; unlocks after reaching REX CORE
 - **Skins** — GRID default; SIGNAL at 500 DATA; EMBER on clear; LOCKDOWN skin on Lockdown clear
+
+## Install (PWA)
+
+Served over `http://127.0.0.1` / HTTPS, the app registers a service worker (`sw.js`) and exposes `manifest.webmanifest` so browsers can install it as a standalone landscape shortcut.
 
 ## Sectors
 
@@ -46,9 +51,11 @@ App version is `package.json` / `APP_VERSION` in `src/constants.js` (keep them m
 
 - Checkpoints, collapsing platforms, electric floors, beat-synced laser gates
 - Combo stomps, hit-stop juice, death replay, screen crack on crash
+- HUD run timer + best full-clear time on the title screen
 - Local top-10 board, end-run breakdown (deaths / combo / mode)
 - Accessibility: colorblind outlines, reduce-motion toggle
 - Procedural SFX + per-sector 8-bit themes; beat-linked backdrops
+- Installable PWA (offline cache of core assets)
 
 ## Source layout
 

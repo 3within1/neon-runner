@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-label="NEON RUNNER">
+  <rect width="128" height="128" fill="#07040f"/>
+  <circle cx="64" cy="64" r="40" fill="none" stroke="#35f0ff" stroke-width="6"/>
+  <path d="M54 40 L78 64 L54 88 Z" fill="#ff2bd6"/>
+</svg>

@@ -27,9 +27,11 @@ import {
   levelIndex,
   addReplayElapsed,
   player,
+  practiceMode,
   replayDuration,
   replayElapsed,
   sampleReplayAt,
+  setPracticeMode,
   setShakeOffset,
   setState,
   state,
@@ -44,6 +46,7 @@ import {
 } from "./story.js";
 import {
   announce,
+  getCampaignSector,
   initLeaderboard,
   initMetaUi,
   initMuteControl,
@@ -58,6 +61,7 @@ let transitionLocked = false;
 /** @type {'normal' | 'lockdown' | 'timeAttack'} */
 let pendingMode = "normal";
 let pendingSector = 0;
+let pendingPractice = false;
 
 function assertSectorTables() {
   const n = getLevelCount();
@@ -95,11 +99,16 @@ function cueGameplayAudio(kind) {
 /**
  * @param {'normal' | 'lockdown' | 'timeAttack'} [mode]
  * @param {number} [sector]
+ * @param {{ practice?: boolean }} [opts]
  */
-export function startGame(mode = pendingMode, sector = pendingSector) {
+export function startGame(mode = pendingMode, sector = pendingSector, opts = {}) {
   if (transitionLocked) return;
   if (state !== "title" && state !== "dead" && state !== "won" && state !== "settings") return;
-  if (mode === "lockdown" && !getMeta().hasCleared) {
+  const practice =
+    !!opts.practice ||
+    pendingPractice ||
+    (practiceMode && (state === "dead" || state === "won"));
+  if (!practice && mode === "lockdown" && !getMeta().hasCleared) {
     announce("Clear the grid once to unlock LOCKDOWN.");
     sfx.ui();
     return;
@@ -108,14 +117,22 @@ export function startGame(mode = pendingMode, sector = pendingSector) {
   try {
     clearInput();
     setState("playing");
-    resetRun(true, { mode, sector });
+    resetRun(true, {
+      mode: practice ? "normal" : mode,
+      sector: practice ? getLevelCount() - 1 : sector,
+      practice,
+    });
     setOverlay(false, "NEON RUNNER", "", "JACK IN");
     setTouchVisible(true);
     const def = getLevelDef(levelIndex);
     const beat = getSectorStory(levelIndex);
-    const modeLabel =
-      mode === "lockdown" ? "Lockdown" : mode === "timeAttack" ? "Time trial" : "Run";
-    announce(`${modeLabel} started. Sector ${def.sector}: ${def.name}. ${beat.brief}`);
+    if (practice) {
+      announce(`Rex practice. ${beat.brief}`);
+    } else {
+      const modeLabel =
+        mode === "lockdown" ? "Lockdown" : mode === "timeAttack" ? "Time trial" : "Run";
+      announce(`${modeLabel} started. Sector ${def.sector}: ${def.name}. ${beat.brief}`);
+    }
     cueGameplayAudio("start");
   } finally {
     transitionLocked = false;
@@ -145,8 +162,12 @@ function onOverlayAction() {
   if (transitionLocked) return;
   if (state === "cleared") continueToNextSector();
   else if (state === "paused") resumeGame();
-  else if (state === "title" || state === "dead" || state === "won" || state === "settings") {
-    startGame(pendingMode, pendingSector);
+  else if (state === "title") {
+    startGame("normal", getCampaignSector(), { practice: false });
+  } else if (state === "dead" || state === "won" || state === "settings") {
+    startGame(pendingMode, pendingSector, {
+      practice: pendingPractice || practiceMode,
+    });
   }
 }
 
@@ -183,16 +204,19 @@ export function resumeGame() {
 export function abortToTitle() {
   clearInput();
   stopMusic();
-  resetRun(true, { mode: "normal", sector: 0 });
+  setPracticeMode(false);
+  pendingPractice = false;
+  resetRun(true, { mode: "normal", sector: 0, practice: false });
   setState("title");
   updateHud();
   showTitleModes();
   setTouchVisible(false);
 }
 
-export function setPendingMode(mode, sector = 0) {
+export function setPendingMode(mode, sector = 0, practice = false) {
   pendingMode = mode;
   pendingSector = sector;
+  pendingPractice = !!practice;
 }
 
 function syncReplayPose(t) {
@@ -234,6 +258,7 @@ function frame(now) {
       if (state === "playing") updateExit();
     }
     updateCamera(dt);
+    updateHud();
   } else if (state !== "paused") {
     camera.x = (Math.sin(time * 0.15) * 0.5 + 0.5) * Math.max(0, level.width - W) * 0.2;
     camera.y = 40;
@@ -263,9 +288,9 @@ export function initGame(touchEls) {
   initMuteControl();
   initLeaderboard();
   initMetaUi({
-    onMode: (mode, sector) => {
-      setPendingMode(mode, sector);
-      startGame(mode, sector);
+    onMode: (mode, sector, practice = false) => {
+      setPendingMode(mode, sector, practice);
+      startGame(mode, sector, { practice });
     },
     onResume: resumeGame,
     onAbort: abortToTitle,
