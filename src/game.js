@@ -1,3 +1,4 @@
+import { TILE } from "./constants.js";
 import { canvas, startBtn, W } from "./dom.js";
 import { getMusicThemeCount, initAudio, sfx, startMusic, stopMusic, unlockAudio } from "./audio.js";
 import { clearInput, initInput } from "./input.js";
