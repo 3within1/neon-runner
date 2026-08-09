@@ -26,6 +26,7 @@ App version is `package.json` / `APP_VERSION` in `src/constants.js` (keep them m
 - High scores: local top-10 board on full clear or game over (initials saved in this browser); end-run breakdown; clear board
 - Scoring: data packs **+10** DATA, stomps **+20** DATA (HUD shows DATA / PACKS / KILLS). Weighted scoring uses a fresh local board key.
 - Extra lives: **+1** life every **500** DATA (soft cap **9**)
+- Story: short mission beats on title, sector start/clear, win, and Cyber-Rex announces (`story.js`)
 
 ## Sectors
 
@@ -50,6 +51,7 @@ Clear an exit to uplink to the next sector. Score and lives carry over until a f
 | `level.js` | Level authoring |
 | `audio.js` | Procedural Web Audio SFX, per-sector theme loops, mute |
 | `sectorTheme.js` | Shared sector BPM / mood / backdrop identity |
+| `story.js` | Title / sector / boss mission beats |
 | `leaderboard.js` | Local top-10 high scores |
 | `input.js` | Keyboard / touch |
 | `ui.js` | HUD / overlay / a11y announcements |

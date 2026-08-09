@@ -49,6 +49,11 @@ import {
   shake,
   state,
 } from "./state.js";
+import {
+  BOSS_STORY,
+  formatSectorClearTagline,
+  RUN_STORY,
+} from "./story.js";
 import { announce, setOverlay, updateHud, presentRunEnd } from "./ui.js";
 
 function awardScore(delta) {
@@ -150,7 +155,7 @@ export function hitPlayer(force = false) {
     presentRunEnd(
       "dead",
       "SYSTEM CRASH",
-      "The grid swallowed you. Try again, runner.",
+      RUN_STORY.death,
       "REBOOT"
     );
     return true;
@@ -263,14 +268,14 @@ function updateBossChase(e, dt) {
 
   if (inArena && !e.engaged) {
     e.engaged = true;
-    announce("CYBER-REX ONLINE. STOMP IT DOWN.");
+    announce(BOSS_STORY.online);
     sfx.bossRoar();
     setShake(0.25);
   }
 
   if (enraged && !e.enrageAnnounced) {
     e.enrageAnnounced = true;
-    announce("CYBER-REX OVERCLOCKED.");
+    announce(BOSS_STORY.overclock);
     sfx.bossRoar();
     setShake(0.3);
   }
@@ -370,7 +375,7 @@ export function updateEnemies(dt) {
         sfx.stomp();
         if (e.boss) {
           sfx.bossDefeat();
-          announce("CYBER-REX DOWN. EXIT ONLINE.");
+          announce(BOSS_STORY.down);
         }
       } else {
         e.flash = 0.35;
@@ -434,7 +439,7 @@ export function updateExit() {
     const boss = getLivingBoss();
     if (boss && !boss.lockAnnounced) {
       boss.lockAnnounced = true;
-      announce("EXIT LOCKED. DEFEAT CYBER-REX.");
+      announce(BOSS_STORY.exitLocked);
       sfx.ui();
     }
     // Nudge left of the gate — exit sits at the arena's right edge.
@@ -451,7 +456,7 @@ export function updateExit() {
     setOverlay(
       true,
       "SECTOR CLEARED",
-      `${level.name} jacked. Next uplink: ${next.name}. DATA ${String(score).padStart(4, "0")}.`,
+      formatSectorClearTagline(levelIndex, score, next),
       "JACK DEEPER",
       `SECTOR ${level.sector}`
     );
@@ -464,7 +469,7 @@ export function updateExit() {
   presentRunEnd(
     "won",
     "JACKPOT",
-    `All sectors cleared. DATA ${String(score).padStart(4, "0")} jacked.`,
+    RUN_STORY.win(score),
     "RUN AGAIN",
     `SECTOR ${level.sector}`
   );
