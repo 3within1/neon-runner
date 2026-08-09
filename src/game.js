@@ -40,6 +40,7 @@ import {
   tickCrack,
   tickHitStop,
   time,
+  setLives,
 } from "./state.js";
 import {
   getSectorStory,
@@ -221,6 +222,28 @@ export function setPendingMode(mode, sector = 0, practice = false) {
   pendingPractice = !!practice;
 }
 
+/**
+ * Boot helper for recordings / QA: Needle Path, parked in the first turret's lane.
+ * Open with `?demo=turret`.
+ */
+export function demoTurrets() {
+  startGame("timeAttack", 2);
+  // Floor pad tops at y=10; first turret sits at tile x=17.
+  player.x = 12.5 * TILE;
+  player.y = 10 * TILE - player.h;
+  player.vx = 0;
+  player.vy = 0;
+  player.onGround = true;
+  player.invuln = Infinity;
+  setLives(999);
+  for (const e of level.enemies) {
+    if (e.turret) e.fireCd = 0.2;
+  }
+  camera.x = Math.max(0, Math.min(level.width - W, player.x - W * 0.35));
+  camera.y = Math.max(0, Math.min(level.height - 540, player.y - 220));
+  announce("TURRET DEMO — amber guns track and fire when you share their lane.");
+}
+
 function syncReplayPose(t) {
   const sample = sampleReplayAt(t);
   if (!sample) return;
@@ -321,4 +344,11 @@ export function initGame(touchEls) {
   showTitleModes();
   setTouchVisible(false);
   requestAnimationFrame(frame);
+
+  if (new URLSearchParams(location.search).get("demo") === "turret") {
+    queueMicrotask(() => {
+      demoTurrets();
+      canvas?.focus({ preventScroll: true });
+    });
+  }
 }
