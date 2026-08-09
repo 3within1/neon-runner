@@ -53,8 +53,10 @@ import {
   player,
   pushReplaySample,
   reduceMotion,
+  practiceMode,
   resetRunStats,
   resetSectorElapsed,
+  runElapsed,
   runMode,
   score,
   sectorElapsed,
@@ -64,6 +66,7 @@ import {
   setHitStop,
   setLevelIndex,
   setLives,
+  setPracticeMode,
   setScore,
   setShake,
   setShakeOffset,
@@ -80,7 +83,15 @@ import {
   RUN_STORY,
 } from "./story.js";
 import { announce, setOverlay, updateHud, presentRunEnd } from "./ui.js";
-import { considerScoreUnlocks, markCleared, recordSectorTime } from "./meta.js";
+import {
+  considerScoreUnlocks,
+  getBestClearTime,
+  getUnlockedSector,
+  markCleared,
+  recordClearTime,
+  recordSectorTime,
+  unlockSector,
+} from "./meta.js";
 import { getSectorTheme } from "./sectorTheme.js";
 
 let abilityAnnouncedDouble = false;
@@ -165,14 +176,25 @@ export function resetPlayer(at = checkpoint) {
 
 /**
  * @param {boolean} [full]
- * @param {{ mode?: 'normal' | 'lockdown' | 'timeAttack', sector?: number }} [opts]
+ * @param {{ mode?: 'normal' | 'lockdown' | 'timeAttack', sector?: number, practice?: boolean }} [opts]
  */
 export function resetRun(full = false, opts = {}) {
   if (full) {
-    const mode = opts.mode || "normal";
-    const sector = mode === "timeAttack" ? opts.sector ?? 0 : 0;
+    const practice = !!opts.practice;
+    setPracticeMode(practice);
+    const mode = practice ? "normal" : opts.mode || "normal";
+    const last = getLevelCount() - 1;
+    let sector = 0;
+    if (practice) {
+      sector = Math.max(0, last);
+    } else if (mode === "timeAttack") {
+      sector = Math.max(0, Math.min(last, opts.sector ?? 0));
+    } else {
+      const unlocked = Math.min(last, getUnlockedSector());
+      sector = Math.max(0, Math.min(unlocked, opts.sector ?? 0));
+    }
     configureRunMode(mode, sector);
-    setLevelIndex(mode === "timeAttack" ? sector : 0);
+    setLevelIndex(sector);
     setScore(0);
     setLives(startingLivesForMode());
     resetRunStats();
@@ -220,7 +242,13 @@ function finishDeathPresentation() {
   if (!pendingEnd) return;
   const end = pendingEnd;
   pendingEnd = null;
-  presentRunEnd(end.outcome, end.title, end.tagline, end.button, end.eyebrow);
+  presentRunEnd(
+    end.outcome,
+    end.title,
+    end.tagline,
+    end.button,
+    end.eyebrow
+  );
 }
 
 export function hitPlayer(force = false) {
@@ -237,12 +265,20 @@ export function hitPlayer(force = false) {
     setCrackFlash(reduceMotion ? 0.2 : 0.85);
     stopMusic();
     sfx.die();
-    pendingEnd = {
-      outcome: "dead",
-      title: "SYSTEM CRASH",
-      tagline: RUN_STORY.death,
-      button: "REBOOT",
-    };
+    pendingEnd = practiceMode
+      ? {
+          outcome: "dead",
+          title: "PRACTICE CRASH",
+          tagline: RUN_STORY.death,
+          button: "RETRY REX",
+          eyebrow: "REX CORE",
+        }
+      : {
+          outcome: "dead",
+          title: "SYSTEM CRASH",
+          tagline: RUN_STORY.death,
+          button: "REBOOT",
+        };
     beginReplayPlayback();
     setState("replaying");
     player.invuln = Infinity;
@@ -697,6 +733,20 @@ function formatClock(s) {
 }
 
 function completeSectorOrRun() {
+  if (practiceMode) {
+    setState("won");
+    stopMusic();
+    sfx.win();
+    presentRunEnd(
+      "won",
+      "PRACTICE CLEAR",
+      "Rex core jacked. Drill again or abort to title.",
+      "RETRY REX",
+      "REX CORE"
+    );
+    return;
+  }
+
   const { improved, best } = recordSectorTime(levelIndex, sectorElapsed);
   if (runMode === "timeAttack") {
     setState("won");
@@ -711,6 +761,7 @@ function completeSectorOrRun() {
   }
 
   if (levelIndex < getLevelCount() - 1) {
+    unlockSector(levelIndex + 1);
     const next = getLevelDef(levelIndex + 1);
     setState("cleared");
     stopMusic();
@@ -725,13 +776,22 @@ function completeSectorOrRun() {
     return;
   }
 
+  unlockSector(getLevelCount() - 1);
   considerScoreUnlocks(score);
   markCleared(runMode === "lockdown");
+  const prevBest = getBestClearTime();
+  const improvedClear = prevBest === null || runElapsed < prevBest;
+  recordClearTime(runElapsed);
   setState("won");
   stopMusic();
   sfx.win();
+  const clearClock = formatClock(runElapsed);
+  const bestNote = improvedClear
+    ? ` Clear ${clearClock} — NEW BEST.`
+    : ` Clear ${clearClock}. Best ${formatClock(prevBest)}.`;
   const tag =
-    runMode === "lockdown" ? RUN_STORY.lockdownWin(score) : RUN_STORY.win(score);
+    (runMode === "lockdown" ? RUN_STORY.lockdownWin(score) : RUN_STORY.win(score)) +
+    bestNote;
   presentRunEnd("won", "JACKPOT", tag, "RUN AGAIN", `SECTOR ${level.sector}`);
 }
 

@@ -37,6 +37,8 @@ export let runMode = "normal";
 export let timeAttackSector = 0;
 export let scoreMult = 1;
 export let enemySpeedMult = 1;
+/** Skip leaderboard / unlocks when practicing the boss arena */
+export let practiceMode = false;
 
 export const camera = { x: 0, y: 0 };
 
@@ -297,6 +299,10 @@ export function configureRunMode(mode, sector = 0) {
     enemySpeedMult = 1;
     lives = START_LIVES;
   }
+}
+
+export function setPracticeMode(on) {
+  practiceMode = !!on;
 }
 
 export function startingLivesForMode() {

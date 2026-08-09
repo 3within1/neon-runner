@@ -13,6 +13,8 @@ const META_KEY = "neon-runner-meta-v2";
  *   unlockedSkins: SkinId[],
  *   skin: SkinId,
  *   bestTimes: number[],
+ *   unlockedSector: number,
+ *   bestClearTime: number,
  *   colorblind: boolean,
  *   forceReduceMotion: boolean | null,
  *   bindings: {
@@ -42,6 +44,8 @@ const defaults = {
   unlockedSkins: ["default"],
   skin: "default",
   bestTimes: [],
+  unlockedSector: 0,
+  bestClearTime: 0,
   colorblind: false,
   forceReduceMotion: null,
   bindings: { ...DEFAULT_BINDINGS },
@@ -55,6 +59,12 @@ function load() {
     const raw = localStorage.getItem(META_KEY);
     if (!raw) return structuredClone(defaults);
     const parsed = JSON.parse(raw);
+    const unlockedSector = Number.isFinite(Number(parsed.unlockedSector))
+      ? Math.max(0, Math.floor(Number(parsed.unlockedSector)))
+      : parsed.hasCleared
+        ? 99
+        : 0;
+    const bestClearTime = Number(parsed.bestClearTime);
     return {
       ...structuredClone(defaults),
       ...parsed,
@@ -63,6 +73,8 @@ function load() {
         : ["default"],
       bindings: { ...DEFAULT_BINDINGS, ...(parsed.bindings || {}) },
       bestTimes: Array.isArray(parsed.bestTimes) ? parsed.bestTimes.map(Number) : [],
+      unlockedSector,
+      bestClearTime: Number.isFinite(bestClearTime) && bestClearTime > 0 ? bestClearTime : 0,
     };
   } catch {
     return structuredClone(defaults);
@@ -107,6 +119,43 @@ export function markCleared(lockdown = false) {
   unlockSkin("ember");
   if (lockdown) unlockSkin("lockdown");
   persist();
+}
+
+/** Highest campaign sector index the player may start from (0-based). */
+export function getUnlockedSector() {
+  return Math.max(0, Math.floor(meta.unlockedSector) || 0);
+}
+
+/** @param {number} index */
+export function unlockSector(index) {
+  const next = Math.max(0, Math.floor(index));
+  if (next > meta.unlockedSector) {
+    meta.unlockedSector = next;
+    persist();
+  }
+  return meta.unlockedSector;
+}
+
+/** @returns {number | null} */
+export function getBestClearTime() {
+  return meta.bestClearTime > 0 ? meta.bestClearTime : null;
+}
+
+/**
+ * Record a full-campaign clear time (seconds).
+ * @param {number} durationSec
+ * @returns {number | null}
+ */
+export function recordClearTime(durationSec) {
+  const t = Number(durationSec);
+  if (!Number.isFinite(t) || t <= 0) return getBestClearTime();
+  const prev = getBestClearTime();
+  if (prev === null || t < prev) {
+    meta.bestClearTime = t;
+    persist();
+    return t;
+  }
+  return prev;
 }
 
 /** Award signal skin at 500+ DATA lifetime best via run score. */

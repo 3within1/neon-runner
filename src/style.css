@@ -496,6 +496,77 @@ body {
   border-color: rgba(255, 179, 71, 0.55);
 }
 
+.best-clear {
+  font-family: Orbitron, sans-serif;
+  font-size: 0.62rem;
+  letter-spacing: 0.22em;
+  color: var(--lime);
+  margin: -0.45rem 0 0.85rem;
+}
+
+.best-clear[hidden] {
+  display: none !important;
+}
+
+.sector-select {
+  margin: -0.2rem 0 1rem;
+}
+
+.sector-select[hidden] {
+  display: none !important;
+}
+
+.sector-select-title {
+  font-family: Orbitron, sans-serif;
+  font-size: 0.58rem;
+  letter-spacing: 0.28em;
+  color: var(--cyan);
+  margin-bottom: 0.4rem;
+}
+
+.sector-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.35rem;
+}
+
+.sector-btn {
+  appearance: none;
+  border: 1px solid rgba(127, 145, 168, 0.55);
+  background: transparent;
+  color: var(--muted);
+  font-family: Orbitron, sans-serif;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  font-size: 0.65rem;
+  min-width: 2.4rem;
+  padding: 0.5rem 0.65rem;
+  cursor: pointer;
+}
+
+.sector-btn.is-selected {
+  color: var(--cyan);
+  border-color: rgba(53, 240, 255, 0.85);
+  background: rgba(53, 240, 255, 0.1);
+}
+
+.sector-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.sector-btn:not(:disabled):hover,
+.sector-btn:not(:disabled):focus-visible {
+  color: var(--cyan);
+  border-color: rgba(53, 240, 255, 0.7);
+}
+
+.sector-btn:focus-visible {
+  outline: 2px solid var(--cyan);
+  outline-offset: 2px;
+}
+
 .mode-row {
   display: flex;
   flex-wrap: wrap;
