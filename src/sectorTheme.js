@@ -20,13 +20,12 @@
  *   grid: string,
  *   accent: string,
  *   particle: string,
- *   style: 'city' | 'towers' | 'needles' | 'swarm' | 'blackout',
+ *   style: 'city' | 'towers' | 'needles' | 'swarm' | 'blackout' | 'overclock',
  * }} SectorTheme
  */
 
 /** @type {readonly SectorTheme[]} */
 export const SECTOR_THEMES = [
-  // 0 — GRID SPRINT: classic neon pulse @ 112
   {
     id: "grid-sprint",
     name: "GRID SPRINT",
@@ -44,7 +43,6 @@ export const SECTOR_THEMES = [
     particle: "rgba(53, 240, 255, 0.18)",
     style: "city",
   },
-  // 1 — ASCENDER: climbing motifs @ 104 (cooler, upward)
   {
     id: "ascender",
     name: "ASCENDER",
@@ -62,7 +60,6 @@ export const SECTOR_THEMES = [
     particle: "rgba(180, 230, 255, 0.22)",
     style: "towers",
   },
-  // 2 — NEEDLE PATH: tense / sparse @ 118
   {
     id: "needle-path",
     name: "NEEDLE PATH",
@@ -80,7 +77,6 @@ export const SECTOR_THEMES = [
     particle: "rgba(200, 120, 255, 0.2)",
     style: "needles",
   },
-  // 3 — SWARM GRID: fast dense aggression @ 128
   {
     id: "swarm-grid",
     name: "SWARM GRID",
@@ -98,7 +94,23 @@ export const SECTOR_THEMES = [
     particle: "rgba(255, 43, 214, 0.22)",
     style: "swarm",
   },
-  // 4 — BLACKOUT RUN: dark gauntlet @ 120
+  {
+    id: "overclock-span",
+    name: "OVERCLOCK SPAN",
+    bpm: 124,
+    density: 0.65,
+    bgTop: "#0c1020",
+    bgBot: "#04060e",
+    skyA: "rgba(80, 220, 255, 0.16)",
+    skyB: "rgba(255, 180, 60, 0.1)",
+    buildingA: "rgba(60, 180, 255, 0.14)",
+    buildingB: "rgba(255, 160, 50, 0.1)",
+    window: "rgba(255, 220, 120, 0.28)",
+    grid: "rgba(80, 220, 255, 0.1)",
+    accent: "rgba(255, 180, 60, 0.18)",
+    particle: "rgba(80, 240, 255, 0.22)",
+    style: "overclock",
+  },
   {
     id: "blackout-run",
     name: "BLACKOUT RUN",
@@ -116,7 +128,6 @@ export const SECTOR_THEMES = [
     particle: "rgba(255, 160, 60, 0.16)",
     style: "blackout",
   },
-  // 5 — REX CORE: boss arena, hotter / denser @ 132
   {
     id: "rex-core",
     name: "REX CORE",

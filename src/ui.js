@@ -6,6 +6,7 @@ import {
   killsEl,
   livesEl,
   sectorEl,
+  comboEl,
   buildVersionEl,
   muteBtn,
   hudMuteBtn,
@@ -19,6 +20,9 @@ import {
   scoreSaveBtn,
   clearScoresBtn,
   runSummaryEl,
+  modeRowEl,
+  settingsPanelEl,
+  pauseActionsEl,
 } from "./dom.js";
 import { isAudioAvailable, isMuted, toggleMute, unlockAudio, sfx } from "./audio.js";
 import { APP_VERSION } from "./constants.js";
@@ -32,8 +36,25 @@ import {
   normalizeInitials,
   submitScore,
 } from "./leaderboard.js";
-import { getLevelCount, getLevelDef } from "./level.js";
+import { getLevelCount, getLevelDef, LEVELS } from "./level.js";
 import {
+  considerScoreUnlocks,
+  formatClock,
+  getActiveSkin,
+  getMeta,
+  getSectorBestTime,
+  RUNNER_SKINS,
+  saveMeta,
+  setSkin,
+} from "./meta.js";
+import {
+  applyBindings,
+  getBindings,
+  setRebindListener,
+  startRebind,
+} from "./input.js";
+import {
+  combo,
   preferTouch,
   score,
   lives,
@@ -43,6 +64,10 @@ import {
   runCoins,
   runStomps,
   runElapsed,
+  runDeaths,
+  maxCombo,
+  runMode,
+  setState,
 } from "./state.js";
 
 /**
@@ -60,6 +85,16 @@ import {
 /** @type {PendingScore | null} */
 let pendingScore = null;
 let announcedScoreReset = false;
+/** @type {null | ((mode: 'normal' | 'lockdown' | 'timeAttack', sector?: number) => void)} */
+let onModeStart = null;
+/** @type {null | (() => void)} */
+let onResume = null;
+/** @type {null | (() => void)} */
+let onAbort = null;
+let mediaRefresh = null;
+let trialSector = 0;
+/** Where SETTINGS should return when DONE is pressed */
+let settingsReturn = "title";
 
 export function updateHud() {
   scoreEl.textContent = String(score).padStart(4, "0");
@@ -68,6 +103,15 @@ export function updateHud() {
   livesEl.textContent = String(Math.max(0, lives)).padStart(2, "0");
   if (sectorEl) {
     sectorEl.textContent = `${String(levelIndex + 1).padStart(2, "0")}/${String(getLevelCount()).padStart(2, "0")}`;
+  }
+  if (comboEl) {
+    const wrap = comboEl.parentElement;
+    if (combo > 1) {
+      if (wrap) wrap.hidden = false;
+      comboEl.textContent = `x${combo}`;
+    } else if (wrap) {
+      wrap.hidden = true;
+    }
   }
   const scoreWrap = scoreEl?.parentElement;
   if (scoreWrap) {
@@ -150,7 +194,7 @@ export function initMuteControl() {
   hudMuteBtn?.addEventListener("click", handleMuteClick);
 
   window.addEventListener("keydown", (e) => {
-    if (e.code !== "KeyM") return;
+    if (e.code !== getBindings().mute && e.code !== "KeyM") return;
     if (e.repeat || e.metaKey || e.ctrlKey || e.altKey) return;
     if (e.target instanceof Element) {
       const tag = e.target.tagName;
@@ -169,6 +213,9 @@ function snapshotRun(outcome) {
     sector: levelIndex + 1,
     durationSec: runElapsed,
     outcome,
+    deaths: runDeaths,
+    maxCombo,
+    mode: runMode,
   };
 }
 
@@ -256,7 +303,6 @@ function pendingPayload(initials) {
   };
 }
 
-/** Persist a qualifying run if the player starts again without pressing SAVE. */
 function flushPendingScore() {
   if (!pendingScore) return;
   const payload = pendingPayload(initialsInput?.value || getLastInitials());
@@ -346,6 +392,325 @@ export function initLeaderboard() {
   });
 }
 
+function setModeRowVisible(show) {
+  if (modeRowEl) modeRowEl.hidden = !show;
+}
+
+function setSettingsVisible(show) {
+  if (settingsPanelEl) settingsPanelEl.hidden = !show;
+}
+
+function setPauseActionsVisible(show) {
+  if (pauseActionsEl) pauseActionsEl.hidden = !show;
+}
+
+function renderModeRow() {
+  if (!modeRowEl) return;
+  const meta = getMeta();
+  modeRowEl.replaceChildren();
+
+  const mk = (label, mode, disabled = false, title = "") => {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "mode-btn";
+    btn.textContent = label;
+    btn.disabled = disabled;
+    if (title) btn.title = title;
+    btn.addEventListener("click", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (mode === "timeAttack") {
+        renderTrialPicker();
+        return;
+      }
+      onModeStart?.(mode, 0);
+    });
+    modeRowEl.appendChild(btn);
+  };
+
+  mk("JACK IN", "normal");
+  mk(
+    "LOCKDOWN",
+    "lockdown",
+    !meta.hasCleared,
+    meta.hasCleared ? "Harder NG+ run" : "Unlock by clearing the grid once"
+  );
+  mk("TIME TRIAL", "timeAttack");
+
+  const settingsBtn = document.createElement("button");
+  settingsBtn.type = "button";
+  settingsBtn.className = "mode-btn ghost";
+  settingsBtn.textContent = "SETTINGS";
+  settingsBtn.addEventListener("click", (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    openSettings();
+  });
+  modeRowEl.appendChild(settingsBtn);
+}
+
+function renderTrialPicker() {
+  if (!modeRowEl) return;
+  modeRowEl.replaceChildren();
+  const label = document.createElement("p");
+  label.className = "trial-label";
+  const def = LEVELS[trialSector];
+  const best = getSectorBestTime(trialSector);
+  label.textContent = `${def.name} · BEST ${best > 0 ? formatClock(best) : "--:--.--"}`;
+  modeRowEl.appendChild(label);
+
+  const row = document.createElement("div");
+  row.className = "trial-nav";
+  const prev = document.createElement("button");
+  prev.type = "button";
+  prev.textContent = "◀";
+  prev.addEventListener("click", (e) => {
+    e.stopPropagation();
+    trialSector = (trialSector + LEVELS.length - 1) % LEVELS.length;
+    renderTrialPicker();
+  });
+  const go = document.createElement("button");
+  go.type = "button";
+  go.className = "mode-btn";
+  go.textContent = "START TRIAL";
+  go.addEventListener("click", (e) => {
+    e.stopPropagation();
+    onModeStart?.("timeAttack", trialSector);
+  });
+  const next = document.createElement("button");
+  next.type = "button";
+  next.textContent = "▶";
+  next.addEventListener("click", (e) => {
+    e.stopPropagation();
+    trialSector = (trialSector + 1) % LEVELS.length;
+    renderTrialPicker();
+  });
+  row.append(prev, go, next);
+  modeRowEl.appendChild(row);
+
+  const back = document.createElement("button");
+  back.type = "button";
+  back.className = "mode-btn ghost";
+  back.textContent = "BACK";
+  back.addEventListener("click", (e) => {
+    e.stopPropagation();
+    renderModeRow();
+  });
+  modeRowEl.appendChild(back);
+}
+
+function renderSettings() {
+  if (!settingsPanelEl) return;
+  const meta = getMeta();
+  const binds = getBindings();
+  settingsPanelEl.replaceChildren();
+
+  const title = document.createElement("p");
+  title.className = "settings-title";
+  title.textContent = "SETTINGS";
+  settingsPanelEl.appendChild(title);
+
+  const a11y = document.createElement("div");
+  a11y.className = "settings-block";
+  const cb = document.createElement("label");
+  cb.className = "toggle";
+  const cbInput = document.createElement("input");
+  cbInput.type = "checkbox";
+  cbInput.checked = !!meta.colorblind;
+  cbInput.addEventListener("change", () => {
+    saveMeta({ colorblind: cbInput.checked });
+    mediaRefresh?.();
+    sfx.ui();
+  });
+  cb.append(cbInput, document.createTextNode(" Colorblind outlines"));
+  a11y.appendChild(cb);
+
+  const rm = document.createElement("label");
+  rm.className = "toggle";
+  const rmInput = document.createElement("input");
+  rmInput.type = "checkbox";
+  rmInput.checked = meta.forceReduceMotion === true;
+  rmInput.addEventListener("change", () => {
+    saveMeta({ forceReduceMotion: rmInput.checked ? true : null });
+    mediaRefresh?.();
+    sfx.ui();
+  });
+  rm.append(rmInput, document.createTextNode(" Reduce motion"));
+  a11y.appendChild(rm);
+  settingsPanelEl.appendChild(a11y);
+
+  const skins = document.createElement("div");
+  skins.className = "settings-block";
+  const skinTitle = document.createElement("p");
+  skinTitle.textContent = "RUNNER SKIN";
+  skins.appendChild(skinTitle);
+  const skinRow = document.createElement("div");
+  skinRow.className = "skin-row";
+  for (const skin of Object.values(RUNNER_SKINS)) {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "skin-btn";
+    btn.textContent = skin.name;
+    btn.disabled = !meta.unlockedSkins.includes(skin.id);
+    btn.style.borderColor = skin.accent;
+    if (meta.skin === skin.id) btn.classList.add("active");
+    btn.title = btn.disabled
+      ? skin.id === "signal"
+        ? "Unlock at 500 DATA"
+        : skin.id === "ember"
+          ? "Unlock by clearing the grid"
+          : skin.id === "lockdown"
+            ? "Unlock by clearing LOCKDOWN"
+            : "Locked"
+      : skin.name;
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      setSkin(skin.id);
+      renderSettings();
+      sfx.ui();
+    });
+    skinRow.appendChild(btn);
+  }
+  skins.appendChild(skinRow);
+  settingsPanelEl.appendChild(skins);
+
+  const bindsBlock = document.createElement("div");
+  bindsBlock.className = "settings-block";
+  const bindTitle = document.createElement("p");
+  bindTitle.textContent = "CONTROLS (click to rebind)";
+  bindsBlock.appendChild(bindTitle);
+  for (const action of ["left", "right", "jump", "dash", "pause"]) {
+    const row = document.createElement("button");
+    row.type = "button";
+    row.className = "bind-row";
+    row.textContent = `${action.toUpperCase()}: ${binds[action] || "—"}`;
+    row.addEventListener("click", (e) => {
+      e.stopPropagation();
+      row.textContent = `${action.toUpperCase()}: …`;
+      startRebind(action);
+    });
+    bindsBlock.appendChild(row);
+  }
+  settingsPanelEl.appendChild(bindsBlock);
+
+  const back = document.createElement("button");
+  back.type = "button";
+  back.className = "mode-btn";
+  back.textContent = "DONE";
+  back.addEventListener("click", (e) => {
+    e.stopPropagation();
+    closeSettings();
+  });
+  settingsPanelEl.appendChild(back);
+}
+
+function openSettings() {
+  settingsReturn = state === "paused" ? "paused" : "title";
+  setState("settings");
+  setModeRowVisible(false);
+  setSettingsVisible(true);
+  setPauseActionsVisible(false);
+  setLeaderboardVisible(false);
+  setRunSummary("");
+  renderSettings();
+  setOverlay(true, "SETTINGS", "Remap inputs, skins, and accessibility.", "JACK IN", "SYSTEM");
+  startBtn.hidden = true;
+}
+
+function closeSettings() {
+  startBtn.hidden = false;
+  setSettingsVisible(false);
+  if (settingsReturn === "paused") {
+    setState("paused");
+    showPauseOverlay();
+    return;
+  }
+  setState("title");
+  showTitleModes();
+}
+
+export function showTitleModes() {
+  startBtn.hidden = false;
+  setPauseActionsVisible(false);
+  setSettingsVisible(false);
+  setModeRowVisible(true);
+  renderModeRow();
+  setOverlay(
+    true,
+    "NEON RUNNER",
+    "Jack the stolen city core before lockdown seals the grid for good.",
+    "JACK IN",
+    "SECTOR 2084"
+  );
+  // Primary CTA still works; mode row offers alternatives.
+  startBtn.textContent = "JACK IN";
+}
+
+export function showPauseOverlay() {
+  startBtn.hidden = false;
+  setModeRowVisible(false);
+  setSettingsVisible(false);
+  setLeaderboardVisible(false);
+  setScoreEntryVisible(false);
+  setRunSummary("");
+  setPauseActionsVisible(true);
+  if (pauseActionsEl) {
+    pauseActionsEl.replaceChildren();
+    const resume = document.createElement("button");
+    resume.type = "button";
+    resume.className = "mode-btn";
+    resume.textContent = "RESUME";
+    resume.addEventListener("click", (e) => {
+      e.stopPropagation();
+      onResume?.();
+    });
+    const settings = document.createElement("button");
+    settings.type = "button";
+    settings.className = "mode-btn ghost";
+    settings.textContent = "SETTINGS";
+    settings.addEventListener("click", (e) => {
+      e.stopPropagation();
+      openSettings();
+    });
+    const abort = document.createElement("button");
+    abort.type = "button";
+    abort.className = "mode-btn ghost";
+    abort.textContent = "ABORT RUN";
+    abort.addEventListener("click", (e) => {
+      e.stopPropagation();
+      onAbort?.();
+    });
+    pauseActionsEl.append(resume, settings, abort);
+  }
+  setOverlay(true, "PAUSED", "Grid frozen. Resume, tweak settings, or abort.", "RESUME", "HOLD");
+}
+
+/**
+ * @param {{
+ *   onMode: (mode: 'normal' | 'lockdown' | 'timeAttack', sector?: number) => void,
+ *   onResume: () => void,
+ *   onAbort: () => void,
+ *   refreshMedia?: () => void,
+ * }} handlers
+ */
+export function initMetaUi(handlers) {
+  onModeStart = handlers.onMode;
+  onResume = handlers.onResume;
+  onAbort = handlers.onAbort;
+  mediaRefresh = handlers.refreshMedia || null;
+
+  setRebindListener((action, code) => {
+    if (action && code) {
+      announce(`${action} bound to ${code}`);
+      renderSettings();
+      sfx.ui();
+    }
+  });
+
+  void getActiveSkin;
+  void applyBindings;
+}
+
 /**
  * Show end-of-run overlay and optionally prompt for leaderboard initials.
  * @param {'won' | 'dead'} outcome
@@ -356,6 +721,7 @@ export function initLeaderboard() {
  */
 export function presentRunEnd(outcome, title, tagline, buttonLabel, eyebrow) {
   const snap = snapshotRun(outcome);
+  considerScoreUnlocks(snap.score);
   const breakdown = formatRunBreakdown({
     score: snap.score,
     coins: snap.coins,
@@ -364,9 +730,11 @@ export function presentRunEnd(outcome, title, tagline, buttonLabel, eyebrow) {
     sectorTotal: getLevelCount(),
     durationSec: snap.durationSec,
     outcome,
+    deaths: snap.deaths,
+    maxCombo: snap.maxCombo,
+    mode: snap.mode,
   });
-  const fullTagline = tagline;
-  const qualifies = isHighScore(snap);
+  const qualifies = isHighScore(snap) && runMode !== "timeAttack";
   pendingScore = qualifies
     ? {
         outcome,
@@ -379,8 +747,13 @@ export function presentRunEnd(outcome, title, tagline, buttonLabel, eyebrow) {
       }
     : null;
 
+  setModeRowVisible(outcome === "won" || outcome === "dead");
+  if (modeRowEl && (outcome === "won" || outcome === "dead")) renderModeRow();
+  setPauseActionsVisible(false);
+  setSettingsVisible(false);
+  startBtn.hidden = false;
   setScoreEntryVisible(qualifies);
-  setOverlay(true, title, fullTagline, buttonLabel, eyebrow);
+  setOverlay(true, title, tagline, buttonLabel, eyebrow);
   setRunSummary(breakdown);
   setLeaderboardVisible(true);
 
@@ -402,22 +775,28 @@ export function setOverlay(show, title, tagline, buttonLabel, eyebrow) {
     eyebrow ?? `SECTOR ${level.sector || def.sector}`;
   panel.querySelector("h1").textContent = title;
   panel.querySelector(".tagline").textContent = tagline;
-  startBtn.textContent = buttonLabel;
+  if (!startBtn.hidden) startBtn.textContent = buttonLabel;
   syncBuildVersion();
   syncMuteButton();
 
   if (show) {
     const showBoard = state === "title" || state === "dead" || state === "won";
-    setLeaderboardVisible(showBoard);
+    if (state !== "paused" && state !== "settings") {
+      setLeaderboardVisible(showBoard);
+    }
     if (state === "title" || state === "cleared" || state === "playing") {
       hideScorePrompt();
       if (state !== "dead" && state !== "won") setRunSummary("");
+    }
+    if (state === "title") {
+      setModeRowVisible(true);
+      if (modeRowEl && !modeRowEl.childElementCount) renderModeRow();
     }
 
     overlay.inert = false;
     overlay.classList.add("visible");
     overlay.setAttribute("aria-hidden", "false");
-    if (!(scoreEntryEl && !scoreEntryEl.hidden)) {
+    if (!(scoreEntryEl && !scoreEntryEl.hidden) && !startBtn.hidden) {
       queueMicrotask(() => startBtn.focus());
     }
     announce(`${title}. ${tagline}`);
@@ -425,6 +804,10 @@ export function setOverlay(show, title, tagline, buttonLabel, eyebrow) {
     flushPendingScore();
     setLeaderboardVisible(false);
     setRunSummary("");
+    setModeRowVisible(false);
+    setSettingsVisible(false);
+    setPauseActionsVisible(false);
+    startBtn.hidden = false;
     const active = document.activeElement;
     if (
       active === startBtn ||

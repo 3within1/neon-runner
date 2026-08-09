@@ -2,10 +2,14 @@ import { getBeatPulse } from "./audio.js";
 import { COLORS, TILE } from "./constants.js";
 import { ctx, W, H } from "./dom.js";
 import { getLivingBoss, isExitLocked } from "./level.js";
+import { getActiveSkin } from "./meta.js";
 import { mod } from "./physics.js";
 import { getSectorTheme } from "./sectorTheme.js";
 import {
   camera,
+  colorblind,
+  combo,
+  crackFlash,
   level,
   levelIndex,
   player,
@@ -157,6 +161,15 @@ function drawBlackout(bg) {
   ctx.fillRect(0, 0, W, H * 0.35);
 }
 
+function drawOverclock(bg) {
+  drawTowers(bg);
+  const pulse = beatPulse();
+  if (!reduceMotion && pulse > 0.85) {
+    ctx.fillStyle = `rgba(80, 220, 255, ${0.04 + pulse * 0.04})`;
+    ctx.fillRect(0, 0, W, H);
+  }
+}
+
 function drawPerspectiveGrid(bg) {
   ctx.strokeStyle = bg.grid;
   ctx.lineWidth = 1;
@@ -226,6 +239,9 @@ function drawBackground() {
     case "blackout":
       drawBlackout(bg);
       break;
+    case "overclock":
+      drawOverclock(bg);
+      break;
     default:
       drawCityBlocks(bg, buildingCount, 0.25, 80, 90);
       break;
@@ -237,19 +253,26 @@ function drawBackground() {
 
 function drawPlatforms() {
   for (const p of level.platforms) {
-    const s = worldToScreen(p.x, p.y);
+    if (p.fallen) continue;
+    const shake = p.shake && !reduceMotion ? (Math.random() - 0.5) * 3 : 0;
+    const s = worldToScreen(p.x + shake, p.y);
     if (s.x + p.w < -20 || s.x > W + 20) continue;
 
-    ctx.shadowColor = COLORS.magenta;
+    ctx.shadowColor = p.kind === "collapse" ? COLORS.amber : COLORS.magenta;
     ctx.shadowBlur = reduceMotion ? 0 : 16;
-    ctx.fillStyle = COLORS.platform;
+    ctx.fillStyle = p.kind === "collapse" ? "#241818" : COLORS.platform;
     ctx.fillRect(s.x, s.y, p.w, p.h);
     ctx.shadowBlur = 0;
 
     const strip = ctx.createLinearGradient(s.x, s.y, s.x + p.w, s.y);
-    strip.addColorStop(0, COLORS.cyan);
-    strip.addColorStop(0.5, COLORS.magenta);
-    strip.addColorStop(1, COLORS.cyan);
+    if (p.kind === "collapse") {
+      strip.addColorStop(0, COLORS.amber);
+      strip.addColorStop(1, COLORS.magenta);
+    } else {
+      strip.addColorStop(0, COLORS.cyan);
+      strip.addColorStop(0.5, COLORS.magenta);
+      strip.addColorStop(1, COLORS.cyan);
+    }
     ctx.fillStyle = strip;
     ctx.fillRect(s.x, s.y, p.w, 4);
 
@@ -261,6 +284,12 @@ function drawPlatforms() {
       ctx.lineTo(x + 10, s.y + Math.min(22, p.h - 6));
     }
     ctx.stroke();
+    if (colorblind) {
+      ctx.strokeStyle = p.kind === "collapse" ? COLORS.amber : COLORS.cyan;
+      ctx.lineWidth = 2;
+      ctx.strokeRect(s.x + 1, s.y + 1, p.w - 2, p.h - 2);
+      ctx.lineWidth = 1;
+    }
   }
 }
 
@@ -272,6 +301,45 @@ function drawHazards() {
     const dh = h.drawH ?? h.h;
     const s = worldToScreen(dx, dy);
     if (s.x + dw < -20 || s.x > W + 20) continue;
+
+    if (h.kind === "laser") {
+      const alpha = h.on ? 0.85 : 0.12;
+      ctx.fillStyle = `rgba(255, 64, 96, ${alpha})`;
+      ctx.shadowColor = COLORS.laser;
+      ctx.shadowBlur = reduceMotion || !h.on ? 0 : 14;
+      ctx.fillRect(s.x, s.y, dw, Math.max(4, dh));
+      if (colorblind && h.on) {
+        ctx.strokeStyle = "#fff";
+        ctx.lineWidth = 2;
+        ctx.strokeRect(s.x, s.y, dw, Math.max(4, dh));
+      }
+      ctx.shadowBlur = 0;
+      continue;
+    }
+
+    if (h.kind === "electric") {
+      const pulse = h.pulse ?? 0.5;
+      ctx.fillStyle = `rgba(106, 240, 255, ${0.35 + pulse * 0.45})`;
+      ctx.shadowColor = COLORS.electric;
+      ctx.shadowBlur = reduceMotion ? 0 : 10 + pulse * 10;
+      ctx.fillRect(s.x, s.y, dw, Math.max(6, dh));
+      ctx.strokeStyle = COLORS.electric;
+      ctx.beginPath();
+      for (let x = s.x; x < s.x + dw; x += 8) {
+        ctx.moveTo(x, s.y + dh * 0.5);
+        ctx.lineTo(x + 4, s.y + (pulse > 0.5 ? 0 : dh));
+      }
+      ctx.stroke();
+      if (colorblind) {
+        ctx.strokeStyle = "#fff";
+        ctx.lineWidth = 2;
+        ctx.strokeRect(s.x, s.y, dw, Math.max(6, dh));
+        ctx.lineWidth = 1;
+      }
+      ctx.shadowBlur = 0;
+      continue;
+    }
+
     const spikes = Math.max(2, Math.floor(dw / 16));
     for (let i = 0; i < spikes; i++) {
       const sx = s.x + (i + 0.5) * (dw / spikes);
@@ -284,8 +352,33 @@ function drawHazards() {
       ctx.shadowColor = COLORS.amber;
       ctx.shadowBlur = reduceMotion ? 0 : 12;
       ctx.fill();
+      if (colorblind) {
+        ctx.strokeStyle = "#fff";
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+      }
     }
     ctx.shadowBlur = 0;
+  }
+}
+
+function drawCheckpoints() {
+  for (const c of level.checkpoints) {
+    const s = worldToScreen(c.x, c.y);
+    if (s.x + c.w < -20 || s.x > W + 20) continue;
+    const pulse = reduceMotion ? 0.5 : 0.5 + Math.sin(time * 4 + c.x) * 0.5;
+    const col = c.activated ? COLORS.lime : COLORS.cyan;
+    ctx.strokeStyle = col;
+    ctx.shadowColor = col;
+    ctx.shadowBlur = reduceMotion ? 0 : 8 + pulse * 10;
+    ctx.lineWidth = 2;
+    ctx.strokeRect(s.x + 10, s.y - 10, 16, 28);
+    ctx.fillStyle = c.activated
+      ? `rgba(182, 255, 59, ${0.25 + pulse * 0.25})`
+      : `rgba(53, 240, 255, ${0.15 + pulse * 0.2})`;
+    ctx.fillRect(s.x + 12, s.y - 8, 12, 24);
+    ctx.shadowBlur = 0;
+    ctx.lineWidth = 1;
   }
 }
 
@@ -418,7 +511,7 @@ function drawRex(e) {
 
 function drawBossHud() {
   const boss = getLivingBoss();
-  if (!boss || state !== "playing") return;
+  if (!boss || (state !== "playing" && state !== "replaying")) return;
   // Show once the runner is near the arena / boss has engaged.
   if (!boss.engaged && player.x < boss.minX - TILE * 4) return;
 
@@ -428,6 +521,14 @@ function drawBossHud() {
   const x = (W - barW) / 2;
   const y = 18;
   const pulse = reduceMotion ? 0.5 : 0.55 + Math.sin(time * 6) * 0.45;
+  const phase = ratio > 0.62 ? 1 : ratio > 0.28 ? 2 : 3;
+  const label = boss.miniboss
+    ? "TOWER SENTINEL"
+    : phase >= 3
+      ? "CYBER-REX // OVERCLOCK"
+      : phase === 2
+        ? "CYBER-REX // ARMOR BREAK"
+        : "CYBER-REX";
 
   ctx.save();
   ctx.fillStyle = "rgba(8, 4, 16, 0.72)";
@@ -435,7 +536,7 @@ function drawBossHud() {
   ctx.fillStyle = COLORS.magenta;
   ctx.font = "700 11px Orbitron, sans-serif";
   ctx.textAlign = "center";
-  ctx.fillText("CYBER-REX", W / 2, y - 2);
+  ctx.fillText(label, W / 2, y - 2);
 
   ctx.fillStyle = "#1a1020";
   ctx.fillRect(x, y + 4, barW, barH);
@@ -457,7 +558,7 @@ function drawBossHud() {
 
 function drawEnemy(e) {
   if (!e.alive) return;
-  if (e.type === "rex" || e.type === "rexBoss") {
+  if (e.type === "rex" || e.type === "rexBoss" || e.type === "towerSentinel") {
     drawRex(e);
     return;
   }
@@ -542,14 +643,23 @@ function drawEnemy(e) {
     ctx.fillRect(3, e.h / 2 - 2, 5, 8 + Math.cos(e.bob * 3) * 3);
   }
 
+  if (colorblind) {
+    ctx.globalAlpha = 1;
+    ctx.strokeStyle = "#ffffff";
+    ctx.lineWidth = 2;
+    ctx.strokeRect(-e.w / 2 - 2, -e.h / 2 - 2, e.w + 4, e.h + 4);
+  }
+
   ctx.restore();
   ctx.shadowBlur = 0;
   ctx.globalAlpha = 1;
 }
 
 function drawPlayer() {
+  if (state !== "playing" && state !== "replaying") return;
   if (player.invuln > 0 && !reduceMotion && Math.floor(player.invuln * 20) % 2 === 0) return;
 
+  const skin = getActiveSkin();
   const s = worldToScreen(player.x, player.y);
   const cx = s.x + player.w / 2;
   const cy = s.y + player.h / 2;
@@ -557,6 +667,13 @@ function drawPlayer() {
   ctx.save();
   ctx.translate(cx, cy);
   ctx.scale(player.facing, 1);
+
+  if (player.dashTimer > 0 && !reduceMotion) {
+    ctx.globalAlpha = 0.35;
+    ctx.fillStyle = skin.accent;
+    ctx.fillRect(-18, -20, 10, 36);
+    ctx.globalAlpha = 1;
+  }
 
   if (player.onGround) {
     ctx.fillStyle = "rgba(0,0,0,0.35)";
@@ -573,10 +690,10 @@ function drawPlayer() {
   ctx.translate(0, runBob);
   ctx.scale(1, jumpStretch);
 
-  ctx.shadowColor = COLORS.cyan;
+  ctx.shadowColor = skin.accent;
   ctx.shadowBlur = reduceMotion ? 0 : 18;
 
-  ctx.strokeStyle = COLORS.cyan;
+  ctx.strokeStyle = skin.accent;
   ctx.lineWidth = 3;
   ctx.lineCap = "round";
   ctx.beginPath();
@@ -586,25 +703,25 @@ function drawPlayer() {
   ctx.lineTo(6 - legSwing * 6, 16);
   ctx.stroke();
 
-  ctx.fillStyle = COLORS.magenta;
+  ctx.fillStyle = skin.trim;
   ctx.fillRect(-10 + legSwing * 4, 15, 8, 4);
   ctx.fillRect(2 - legSwing * 4, 15, 8, 4);
 
-  ctx.fillStyle = "#10182a";
-  ctx.strokeStyle = COLORS.cyan;
-  ctx.lineWidth = 2;
+  ctx.fillStyle = skin.body;
+  ctx.strokeStyle = skin.accent;
+  ctx.lineWidth = colorblind ? 3 : 2;
   roundRect(-10, -12, 20, 22, 5);
   ctx.fill();
   ctx.stroke();
 
-  ctx.fillStyle = COLORS.lime;
-  ctx.shadowColor = COLORS.lime;
+  ctx.fillStyle = skin.core;
+  ctx.shadowColor = skin.core;
   ctx.beginPath();
   ctx.arc(0, -2, 3.5, 0, Math.PI * 2);
   ctx.fill();
 
-  ctx.shadowColor = COLORS.cyan;
-  ctx.strokeStyle = COLORS.cyan;
+  ctx.shadowColor = skin.accent;
+  ctx.strokeStyle = skin.accent;
   ctx.lineWidth = 3;
   ctx.beginPath();
   ctx.moveTo(-10, -6);
@@ -614,25 +731,25 @@ function drawPlayer() {
   ctx.stroke();
 
   ctx.fillStyle = "#0b1220";
-  ctx.strokeStyle = COLORS.magenta;
+  ctx.strokeStyle = skin.trim;
   ctx.lineWidth = 2;
   roundRect(-9, -22, 18, 12, 4);
   ctx.fill();
   ctx.stroke();
 
   const visor = ctx.createLinearGradient(-7, -18, 7, -14);
-  visor.addColorStop(0, COLORS.magenta);
-  visor.addColorStop(1, COLORS.cyan);
+  visor.addColorStop(0, skin.trim);
+  visor.addColorStop(1, skin.accent);
   ctx.fillStyle = visor;
   ctx.fillRect(-7, -18, 14, 4);
 
-  ctx.strokeStyle = COLORS.lime;
+  ctx.strokeStyle = skin.core;
   ctx.beginPath();
   const antenna = reduceMotion ? 0 : Math.sin(time * 8) * 2;
   ctx.moveTo(6, -22);
   ctx.lineTo(10, -28 - antenna);
   ctx.stroke();
-  ctx.fillStyle = COLORS.lime;
+  ctx.fillStyle = skin.core;
   ctx.beginPath();
   ctx.arc(10, -28 - antenna, 2, 0, Math.PI * 2);
   ctx.fill();
@@ -654,16 +771,57 @@ function drawParticles() {
   }
 }
 
+function drawComboBanner() {
+  if (combo < 2 || (state !== "playing" && state !== "replaying")) return;
+  ctx.save();
+  ctx.fillStyle = COLORS.lime;
+  ctx.font = "700 16px Orbitron, sans-serif";
+  ctx.textAlign = "right";
+  ctx.shadowColor = COLORS.lime;
+  ctx.shadowBlur = reduceMotion ? 0 : 12;
+  ctx.fillText(`COMBO x${combo}`, W - 24, 52);
+  ctx.restore();
+}
+
+function drawCrackOverlay() {
+  if (crackFlash <= 0 || reduceMotion) return;
+  const a = Math.min(1, crackFlash);
+  ctx.save();
+  ctx.strokeStyle = `rgba(255, 80, 120, ${0.35 * a})`;
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(W * 0.2, H * 0.15);
+  ctx.lineTo(W * 0.35, H * 0.45);
+  ctx.lineTo(W * 0.28, H * 0.8);
+  ctx.moveTo(W * 0.55, H * 0.1);
+  ctx.lineTo(W * 0.62, H * 0.4);
+  ctx.lineTo(W * 0.78, H * 0.35);
+  ctx.lineTo(W * 0.7, H * 0.75);
+  ctx.stroke();
+  ctx.fillStyle = `rgba(20, 0, 10, ${0.2 * a})`;
+  ctx.fillRect(0, 0, W, H);
+  ctx.restore();
+}
+
 export function draw() {
   drawBackground();
   drawPlatforms();
   drawHazards();
+  drawCheckpoints();
   drawCoins();
   drawExit();
   for (const e of level.enemies) drawEnemy(e);
-  if (state === "playing") drawPlayer();
+  drawPlayer();
   drawParticles();
   drawBossHud();
+  drawComboBanner();
+  drawCrackOverlay();
+
+  if (state === "replaying") {
+    ctx.fillStyle = "rgba(255, 43, 214, 0.85)";
+    ctx.font = "700 12px Orbitron, sans-serif";
+    ctx.fillText("REPLAY", 18, H - 18);
+  }
 
   ctx.strokeStyle = "rgba(53, 240, 255, 0.15)";
   ctx.lineWidth = 2;

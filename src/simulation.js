@@ -1,5 +1,12 @@
 import {
+  COMBO_BONUS_DATA,
+  COMBO_BONUS_EVERY,
+  COMBO_WINDOW,
   COYOTE_TIME,
+  DASH_COOLDOWN,
+  DASH_DURATION,
+  DASH_SPEED,
+  DOUBLE_JUMP_VELOCITY,
   GRAVITY,
   INVULN_HIT,
   INVULN_STOMP,
@@ -9,10 +16,11 @@ import {
   JUMP_VELOCITY,
   MAX_FALL,
   SCORE_PACK,
-  START_LIVES,
   STOMP_BOUNCE,
   STOMP_SLACK,
   TILE,
+  UNLOCK_DASH_SECTOR,
+  UNLOCK_DOUBLE_JUMP_SECTOR,
 } from "./constants.js";
 import { W, H } from "./dom.js";
 import { input } from "./input.js";
@@ -23,23 +31,37 @@ import {
   getLevelDef,
   getLivingBoss,
   isExitLocked,
+  solidPlatforms,
 } from "./level.js";
 import { aabb, resolveAxis, segmentHitsRect } from "./physics.js";
 import { sfx, stopMusic } from "./audio.js";
 import {
   addRunCoin,
+  addRunDeath,
   addRunStomp,
   addScore,
+  beginReplayPlayback,
   camera,
   checkpoint,
+  clearReplay,
+  combo,
+  configureRunMode,
   decayShake,
   level,
   levelIndex,
   lives,
   player,
+  pushReplaySample,
   reduceMotion,
   resetRunStats,
+  resetSectorElapsed,
+  runMode,
   score,
+  sectorElapsed,
+  setCombo,
+  setComboTimer,
+  setCrackFlash,
+  setHitStop,
   setLevelIndex,
   setLives,
   setScore,
@@ -47,14 +69,24 @@ import {
   setShakeOffset,
   setState,
   shake,
+  startingLivesForMode,
   state,
+  tickCombo,
 } from "./state.js";
 import {
+  ABILITY_STORY,
   BOSS_STORY,
   formatSectorClearTagline,
   RUN_STORY,
 } from "./story.js";
 import { announce, setOverlay, updateHud, presentRunEnd } from "./ui.js";
+import { considerScoreUnlocks, markCleared, recordSectorTime } from "./meta.js";
+import { getSectorTheme } from "./sectorTheme.js";
+
+let abilityAnnouncedDouble = false;
+let abilityAnnouncedDash = false;
+/** @type {null | { title: string, tagline: string, button: string, eyebrow?: string, outcome: 'won' | 'dead' }} */
+let pendingEnd = null;
 
 function awardScore(delta) {
   const gained = addScore(delta);
@@ -71,14 +103,40 @@ export function setCheckpoint(x, y) {
   checkpoint.y = y;
 }
 
+function syncAbilities() {
+  const idx = levelIndex;
+  player.maxAirJumps = idx >= UNLOCK_DOUBLE_JUMP_SECTOR ? 1 : 0;
+  player.canDash = idx >= UNLOCK_DASH_SECTOR;
+  if (player.maxAirJumps > 0 && !abilityAnnouncedDouble) {
+    abilityAnnouncedDouble = true;
+    announce(ABILITY_STORY.doubleJump);
+  }
+  if (player.canDash && !abilityAnnouncedDash) {
+    abilityAnnouncedDash = true;
+    announce(ABILITY_STORY.dash);
+  }
+}
+
 function isSafeStanding(px, py) {
   const feet = { x: px, y: py, w: player.w, h: player.h };
   for (const h of level.hazards) {
+    if (h.kind === "laser" && !h.on) continue;
     if (aabb(feet, h)) return false;
   }
   for (const e of level.enemies) {
     if (!e.alive) continue;
     if (aabb(feet, enemyBody(e))) return false;
+  }
+  for (const p of level.platforms) {
+    if (p.kind !== "collapse" || p.fallen) continue;
+    if (
+      player.onGround &&
+      feet.x + feet.w > p.x &&
+      feet.x < p.x + p.w &&
+      Math.abs(feet.y + feet.h - p.y) < 3
+    ) {
+      return false;
+    }
   }
   return true;
 }
@@ -94,6 +152,9 @@ export function resetPlayer(at = checkpoint) {
   player.onGround = false;
   player.coyote = 0;
   player.jumpBuffer = 0;
+  player.airJumps = player.maxAirJumps;
+  player.dashCd = 0;
+  player.dashTimer = 0;
   player.anim = "idle";
   player.frame = 0;
   player.frameTimer = 0;
@@ -102,16 +163,29 @@ export function resetPlayer(at = checkpoint) {
   player.suppressLand = true;
 }
 
-export function resetRun(full = false) {
+/**
+ * @param {boolean} [full]
+ * @param {{ mode?: 'normal' | 'lockdown' | 'timeAttack', sector?: number }} [opts]
+ */
+export function resetRun(full = false, opts = {}) {
   if (full) {
-    setLevelIndex(0);
+    const mode = opts.mode || "normal";
+    const sector = mode === "timeAttack" ? opts.sector ?? 0 : 0;
+    configureRunMode(mode, sector);
+    setLevelIndex(mode === "timeAttack" ? sector : 0);
     setScore(0);
-    setLives(START_LIVES);
+    setLives(startingLivesForMode());
     resetRunStats();
+    abilityAnnouncedDouble = false;
+    abilityAnnouncedDash = false;
+    pendingEnd = null;
   }
   buildLevel(levelIndex);
+  syncAbilities();
   setCheckpoint(level.spawn.x, level.spawn.y);
   resetPlayer(checkpoint);
+  resetSectorElapsed();
+  clearReplay();
   camera.x = 0;
   camera.y = 0;
   setShake(0);
@@ -120,12 +194,16 @@ export function resetRun(full = false) {
 }
 
 export function advanceLevel() {
+  if (runMode === "timeAttack") return false;
   const next = levelIndex + 1;
   if (next >= getLevelCount()) return false;
   setLevelIndex(next);
   buildLevel(next);
+  syncAbilities();
   setCheckpoint(level.spawn.x, level.spawn.y);
   resetPlayer(checkpoint);
+  resetSectorElapsed();
+  clearReplay();
   camera.x = 0;
   camera.y = 0;
   setShake(0);
@@ -138,6 +216,13 @@ function pitY() {
   return level.height + 80;
 }
 
+function finishDeathPresentation() {
+  if (!pendingEnd) return;
+  const end = pendingEnd;
+  pendingEnd = null;
+  presentRunEnd(end.outcome, end.title, end.tagline, end.button, end.eyebrow);
+}
+
 export function hitPlayer(force = false) {
   if (state !== "playing") return false;
   if (!force && player.invuln > 0) return false;
@@ -145,19 +230,22 @@ export function hitPlayer(force = false) {
   const nextLives = lives - 1;
   setLives(Math.max(0, nextLives));
   setShake(0.35);
+  addRunDeath();
   updateHud();
 
   if (nextLives <= 0) {
-    setState("dead");
-    player.invuln = Infinity;
+    setCrackFlash(reduceMotion ? 0.2 : 0.85);
     stopMusic();
     sfx.die();
-    presentRunEnd(
-      "dead",
-      "SYSTEM CRASH",
-      RUN_STORY.death,
-      "REBOOT"
-    );
+    pendingEnd = {
+      outcome: "dead",
+      title: "SYSTEM CRASH",
+      tagline: RUN_STORY.death,
+      button: "REBOOT",
+    };
+    beginReplayPlayback();
+    setState("replaying");
+    player.invuln = Infinity;
     return true;
   }
 
@@ -166,39 +254,82 @@ export function hitPlayer(force = false) {
   return true;
 }
 
+function tryDash() {
+  if (!player.canDash) return;
+  if (player.dashCd > 0 || player.dashTimer > 0) return;
+  if (!input.dashPressed) return;
+  input.dashPressed = false;
+  const dir =
+    input.left && !input.right ? -1 : input.right && !input.left ? 1 : player.facing;
+  player.dashDir = dir || 1;
+  player.dashTimer = DASH_DURATION;
+  player.dashCd = DASH_COOLDOWN;
+  player.vx = player.dashDir * DASH_SPEED;
+  player.vy = Math.min(player.vy, 0);
+  player.invuln = Math.max(player.invuln, DASH_DURATION * 0.85);
+  player.facing = player.dashDir;
+  sfx.dash();
+}
+
 export function updatePlayer(dt) {
-  const accel = player.onGround ? 3200 : 2200;
-  const maxSpeed = 280;
-  const friction = player.onGround ? 2400 : 400;
+  syncAbilities();
+  tickCombo(dt);
+  player.dashCd = Math.max(0, player.dashCd - dt);
+
+  if (player.dashTimer > 0) {
+    player.dashTimer = Math.max(0, player.dashTimer - dt);
+    player.vx = player.dashDir * DASH_SPEED;
+    player.vy = 0;
+    input.jumpPressed = false;
+    input.jumpReleased = false;
+    input.dashPressed = false;
+  } else {
+    tryDash();
+    const accel = player.onGround ? 3200 : 2200;
+    const maxSpeed = 280;
+    const friction = player.onGround ? 2400 : 400;
+    if (input.left) {
+      player.vx -= accel * dt;
+      player.facing = -1;
+    } else if (input.right) {
+      player.vx += accel * dt;
+      player.facing = 1;
+    } else {
+      const s = Math.sign(player.vx);
+      player.vx -= s * friction * dt;
+      if (Math.sign(player.vx) !== s) player.vx = 0;
+    }
+    player.vx = Math.max(-maxSpeed, Math.min(maxSpeed, player.vx));
+  }
+
   const wasGrounded = player.onGround;
 
-  if (input.left) {
-    player.vx -= accel * dt;
-    player.facing = -1;
-  } else if (input.right) {
-    player.vx += accel * dt;
-    player.facing = 1;
+  if (player.onGround) {
+    player.coyote = COYOTE_TIME;
+    player.airJumps = player.maxAirJumps;
   } else {
-    const s = Math.sign(player.vx);
-    player.vx -= s * friction * dt;
-    if (Math.sign(player.vx) !== s) player.vx = 0;
+    player.coyote = Math.max(0, player.coyote - dt);
   }
-  player.vx = Math.max(-maxSpeed, Math.min(maxSpeed, player.vx));
-
-  if (player.onGround) player.coyote = COYOTE_TIME;
-  else player.coyote = Math.max(0, player.coyote - dt);
 
   if (input.jumpPressed) player.jumpBuffer = JUMP_BUFFER;
   else player.jumpBuffer = Math.max(0, player.jumpBuffer - dt);
   input.jumpPressed = false;
 
-  if (player.jumpBuffer > 0 && player.coyote > 0) {
-    player.vy = JUMP_VELOCITY;
-    player.onGround = false;
-    player.coyote = 0;
-    player.jumpBuffer = 0;
-    player.jumpCutExempt = false;
-    sfx.jump();
+  if (player.dashTimer <= 0 && player.jumpBuffer > 0) {
+    if (player.coyote > 0) {
+      player.vy = JUMP_VELOCITY;
+      player.onGround = false;
+      player.coyote = 0;
+      player.jumpBuffer = 0;
+      player.jumpCutExempt = false;
+      sfx.jump();
+    } else if (player.airJumps > 0) {
+      player.vy = DOUBLE_JUMP_VELOCITY;
+      player.airJumps -= 1;
+      player.jumpBuffer = 0;
+      player.jumpCutExempt = false;
+      sfx.doubleJump();
+    }
   }
 
   if (input.jumpReleased) {
@@ -208,18 +339,21 @@ export function updatePlayer(dt) {
     input.jumpReleased = false;
   }
 
-  player.vy = Math.min(MAX_FALL, player.vy + GRAVITY * dt);
+  if (player.dashTimer <= 0) {
+    player.vy = Math.min(MAX_FALL, player.vy + GRAVITY * dt);
+  }
 
   player.prevX = player.x;
   player.prevY = player.y;
   const falling = player.vy > 40;
+  const platforms = solidPlatforms();
 
   player.x += player.vx * dt;
-  resolveAxis(player, level.platforms, "x", player.prevX);
+  resolveAxis(player, platforms, "x", player.prevX);
 
   player.onGround = false;
   player.y += player.vy * dt;
-  resolveAxis(player, level.platforms, "y", player.prevY);
+  resolveAxis(player, platforms, "y", player.prevY);
 
   if (player.y > pitY()) {
     hitPlayer(true);
@@ -233,15 +367,23 @@ export function updatePlayer(dt) {
     if (isSafeStanding(player.x, player.y)) {
       setCheckpoint(player.x, player.y);
     }
+    // Collapse platforms underfoot
+    for (const p of level.platforms) {
+      if (p.kind !== "collapse" || p.fallen) continue;
+      if (
+        player.x + player.w > p.x &&
+        player.x < p.x + p.w &&
+        Math.abs(player.y + player.h - p.y) < 3
+      ) {
+        if (p.collapseTimer <= 0) p.collapseTimer = 0.45;
+      }
+    }
   }
 
-  if (!player.onGround) {
-    player.anim = player.vy < 0 ? "jump" : "fall";
-  } else if (Math.abs(player.vx) > 20) {
-    player.anim = "run";
-  } else {
-    player.anim = "idle";
-  }
+  if (player.dashTimer > 0) player.anim = "run";
+  else if (!player.onGround) player.anim = player.vy < 0 ? "jump" : "fall";
+  else if (Math.abs(player.vx) > 20) player.anim = "run";
+  else player.anim = "idle";
 
   const speeds = { idle: 0.18, run: 0.08, jump: 0.12, fall: 0.12 };
   player.frameTimer += dt;
@@ -251,6 +393,14 @@ export function updatePlayer(dt) {
   }
 
   if (player.invuln > 0) player.invuln = Math.max(0, player.invuln - dt);
+  pushReplaySample();
+}
+
+function bossPhase(e) {
+  const ratio = e.hp / e.maxHp;
+  if (ratio > 0.62) return 1;
+  if (ratio > 0.28) return 2;
+  return 3;
 }
 
 function updateBossChase(e, dt) {
@@ -260,24 +410,69 @@ function updateBossChase(e, dt) {
   const dist = Math.abs(dx);
   const inArena =
     player.x + player.w > e.minX - TILE * 4 && player.x < e.maxX + TILE * 4;
-  const enraged = e.hp <= Math.ceil(e.maxHp * 0.5);
-  const chaseSpeed = e.speed * (enraged ? 1.35 : 1);
-  const chargeMult = enraged ? 3.4 : 2.95;
-  const chargeDur = enraged ? 0.85 : 0.7;
-  const chargeCd = enraged ? 0.95 : 1.35;
+  const phase = e.miniboss ? (e.hp <= 2 ? 3 : e.hp <= 3 ? 2 : 1) : bossPhase(e);
+  const enraged = phase >= 3;
+  const chaseSpeed = e.baseSpeed * (phase === 1 ? 1 : phase === 2 ? 1.2 : 1.4);
+  const chargeMult = enraged ? 3.5 : phase === 2 ? 3.1 : 2.85;
+  const chargeDur = enraged ? 0.9 : 0.7;
+  const chargeCd = enraged ? 0.85 : phase === 2 ? 1.1 : 1.35;
 
   if (inArena && !e.engaged) {
     e.engaged = true;
-    announce(BOSS_STORY.online);
+    announce(e.miniboss ? BOSS_STORY.sentinelOnline : BOSS_STORY.online);
     sfx.bossRoar();
     setShake(0.25);
   }
 
-  if (enraged && !e.enrageAnnounced) {
+  if (phase >= 2 && e.phaseAnnounced < 2) {
+    e.phaseAnnounced = 2;
+    if (!e.miniboss) {
+      announce(BOSS_STORY.armorBreak);
+      sfx.bossRoar();
+      setShake(0.28);
+    }
+  }
+  if (enraged && e.phaseAnnounced < 3) {
+    e.phaseAnnounced = 3;
     e.enrageAnnounced = true;
     announce(BOSS_STORY.overclock);
     sfx.bossRoar();
     setShake(0.3);
+  }
+
+  // Phase 2/3 aerial slam
+  e.slamTimer = Math.max(0, e.slamTimer - dt);
+  if (e.airborne) {
+    e.vy += GRAVITY * 1.1 * dt;
+    e.y += e.vy * dt;
+    e.x += Math.sign(dx) * chaseSpeed * 0.55 * dt;
+    e.x = Math.max(e.minX, Math.min(e.maxX - e.w, e.x));
+    const floorY = level.platforms
+      .filter((p) => !p.fallen && playerMid >= p.x && playerMid <= p.x + p.w)
+      .reduce((best, p) => (best === null || p.y < best ? p.y : best), null);
+    const ground = floorY != null ? floorY : e.minY + e.h;
+    if (e.y + e.h >= ground) {
+      e.y = ground - e.h;
+      e.vy = 0;
+      e.airborne = false;
+      e.slamTimer = enraged ? 1.1 : 1.6;
+      setShake(0.22);
+      sfx.bossCharge();
+    }
+    return;
+  }
+
+  if (
+    inArena &&
+    phase >= 2 &&
+    e.slamTimer <= 0 &&
+    e.charging <= 0 &&
+    dist < 360
+  ) {
+    e.airborne = true;
+    e.vy = enraged ? -780 : -620;
+    e.charging = 0;
+    return;
   }
 
   e.chargeCd = Math.max(0, e.chargeCd - dt);
@@ -287,7 +482,6 @@ function updateBossChase(e, dt) {
     e.vx = dir * chaseSpeed * chargeMult;
   } else if (inArena && dist > 12) {
     e.vx = Math.sign(dx) * chaseSpeed;
-    // Charge more often, from closer range, and across most of the arena.
     if (dist > 40 && dist < 480 && e.chargeCd <= 0) {
       e.charging = chargeDur;
       e.chargeCd = chargeCd;
@@ -295,8 +489,7 @@ function updateBossChase(e, dt) {
       sfx.bossCharge();
     }
   } else if (!inArena) {
-    // Idle patrol when the runner is still approaching.
-    if (Math.abs(e.vx) < 1) e.vx = e.speed;
+    if (Math.abs(e.vx) < 1) e.vx = e.baseSpeed;
   }
 
   e.x += e.vx * dt;
@@ -308,6 +501,17 @@ function updateBossChase(e, dt) {
     e.x = e.maxX - e.w;
     e.vx = -Math.abs(e.vx);
     e.charging = 0;
+  }
+}
+
+function registerStomp(e) {
+  const next = combo > 0 && comboTimer > 0 ? combo + 1 : 1;
+  setCombo(next);
+  setComboTimer(COMBO_WINDOW);
+  if (next > 1 && next % COMBO_BONUS_EVERY === 0) {
+    awardScore(COMBO_BONUS_DATA);
+    sfx.combo();
+    announce(`COMBO x${next}`);
   }
 }
 
@@ -341,8 +545,7 @@ export function updateEnemies(dt) {
       }
     }
 
-    // Heavy walk cycle for stomping ground units (rex / boss).
-    if (e.type === "rex" || e.type === "rexBoss") {
+    if (e.type === "rex" || e.type === "rexBoss" || e.type === "towerSentinel") {
       const chargeBoost = e.charging > 0 ? 2.2 : 1;
       e.walk += dt * (4.2 + Math.abs(e.vx) * 0.035) * chargeBoost;
     }
@@ -362,24 +565,26 @@ export function updateEnemies(dt) {
       player.invuln = Math.max(player.invuln, INVULN_STOMP);
       e.hp -= 1;
       e.charging = 0;
-      if (e.boss) {
-        // Snap back onto the runner quickly after a hit.
-        e.chargeCd = Math.min(e.chargeCd, 0.35);
-      }
+      e.airborne = false;
+      if (e.boss) e.chargeCd = Math.min(e.chargeCd, 0.35);
+      registerStomp(e);
+
       if (e.hp <= 0) {
         e.alive = false;
         awardScore(e.score);
         addRunStomp(1);
         setShake(e.boss ? 0.45 : 0.15);
+        setHitStop(e.boss ? 0.14 : e.type === "armored" ? 0.1 : 0.05);
         updateHud();
         sfx.stomp();
         if (e.boss) {
           sfx.bossDefeat();
-          announce(BOSS_STORY.down);
+          announce(e.miniboss ? BOSS_STORY.sentinelDown : BOSS_STORY.down);
         }
       } else {
         e.flash = 0.35;
         setShake(e.boss ? 0.16 : 0.08);
+        setHitStop(e.boss ? 0.1 : e.type === "armored" ? 0.08 : 0.04);
         sfx.stomp();
       }
       return;
@@ -411,9 +616,23 @@ export function updateCoins(dt) {
   }
 }
 
-export function updateHazards() {
+export function updateHazards(dt) {
   if (state !== "playing") return;
+  const bpm = getSectorTheme(levelIndex).bpm;
+  const beat = 60 / bpm;
+
   for (const h of level.hazards) {
+    if (h.kind === "laser") {
+      const period = h.period || 1.2;
+      const t = (performance.now() / 1000 + h.phase * period) % period;
+      h.on = t < period * 0.45;
+    } else if (h.kind === "electric") {
+      h.on = true;
+      h.pulse = 0.5 + 0.5 * Math.sin((performance.now() / 1000) * (Math.PI * 2) / beat);
+    }
+
+    if (h.kind === "laser" && !h.on) continue;
+
     if (
       segmentHitsRect(
         player.prevX,
@@ -431,20 +650,63 @@ export function updateHazards() {
   }
 }
 
-export function updateExit() {
-  if (state !== "playing") return;
-  if (!aabb(player, level.exit)) return;
-
-  if (isExitLocked()) {
-    const boss = getLivingBoss();
-    if (boss && !boss.lockAnnounced) {
-      boss.lockAnnounced = true;
-      announce(BOSS_STORY.exitLocked);
-      sfx.ui();
+export function updateCollapse(dt) {
+  for (const p of level.platforms) {
+    if (p.kind !== "collapse") continue;
+    if (p.fallen) {
+      p.respawnTimer -= dt;
+      if (p.respawnTimer <= 0) {
+        p.fallen = false;
+        p.collapseTimer = 0;
+        p.shake = 0;
+      }
+      continue;
     }
-    // Nudge left of the gate — exit sits at the arena's right edge.
-    player.x = Math.min(player.x, level.exit.x - player.w - 2);
-    if (player.vx > 0) player.vx = -120;
+    if (p.collapseTimer > 0) {
+      p.collapseTimer -= dt;
+      p.shake = 1;
+      if (p.collapseTimer <= 0) {
+        p.fallen = true;
+        p.respawnTimer = 2.4;
+        p.shake = 0;
+      }
+    } else {
+      p.shake = 0;
+    }
+  }
+}
+
+export function updateCheckpoints() {
+  if (state !== "playing") return;
+  for (const c of level.checkpoints) {
+    if (c.activated) continue;
+    if (!aabb(player, c)) continue;
+    c.activated = true;
+    setCheckpoint(c.x + 8, c.y - player.h);
+    player.invuln = Math.max(player.invuln, 0.45);
+    sfx.checkpoint();
+    announce("CHECKPOINT");
+  }
+}
+
+function formatClock(s) {
+  const mins = Math.floor(s / 60);
+  const secs = Math.floor(s % 60);
+  const ms = Math.floor((s % 1) * 100);
+  return `${mins}:${String(secs).padStart(2, "0")}.${String(ms).padStart(2, "0")}`;
+}
+
+function completeSectorOrRun() {
+  const { improved, best } = recordSectorTime(levelIndex, sectorElapsed);
+  if (runMode === "timeAttack") {
+    setState("won");
+    stopMusic();
+    sfx.win();
+    const clock = formatClock(sectorElapsed);
+    const note = improved
+      ? `Sector clear in ${clock}. NEW BEST.`
+      : `Sector clear in ${clock}. Best ${best > 0 ? formatClock(best) : "--"}.`;
+    presentRunEnd("won", "TIME TRIAL", note, "RUN AGAIN", `SECTOR ${level.sector}`);
     return;
   }
 
@@ -463,16 +725,33 @@ export function updateExit() {
     return;
   }
 
+  considerScoreUnlocks(score);
+  markCleared(runMode === "lockdown");
   setState("won");
   stopMusic();
   sfx.win();
-  presentRunEnd(
-    "won",
-    "JACKPOT",
-    RUN_STORY.win(score),
-    "RUN AGAIN",
-    `SECTOR ${level.sector}`
-  );
+  const tag =
+    runMode === "lockdown" ? RUN_STORY.lockdownWin(score) : RUN_STORY.win(score);
+  presentRunEnd("won", "JACKPOT", tag, "RUN AGAIN", `SECTOR ${level.sector}`);
+}
+
+export function updateExit() {
+  if (state !== "playing") return;
+  if (!aabb(player, level.exit)) return;
+
+  if (isExitLocked()) {
+    const boss = getLivingBoss();
+    if (boss && !boss.lockAnnounced) {
+      boss.lockAnnounced = true;
+      announce(BOSS_STORY.exitLocked);
+      sfx.ui();
+    }
+    player.x = Math.min(player.x, level.exit.x - player.w - 2);
+    if (player.vx > 0) player.vx = -120;
+    return;
+  }
+
+  completeSectorOrRun();
 }
 
 export function updateCamera(dt) {
@@ -489,5 +768,13 @@ export function updateCamera(dt) {
   } else {
     decayShake(dt);
     setShakeOffset(0, 0);
+  }
+}
+
+export function finalizeReplayIfDone(elapsed) {
+  if (state !== "replaying") return;
+  if (elapsed >= 2) {
+    setState("dead");
+    finishDeathPresentation();
   }
 }

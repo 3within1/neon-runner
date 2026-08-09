@@ -1,6 +1,20 @@
-import { EXTRA_LIFE_EVERY, MAX_LIVES, TILE, START_LIVES } from "./constants.js";
+import {
+  EXTRA_LIFE_EVERY,
+  LOCKDOWN_SCORE_MULT,
+  LOCKDOWN_SPEED_MULT,
+  LOCKDOWN_START_LIVES,
+  MAX_LIVES,
+  REPLAY_SAMPLE_HZ,
+  REPLAY_SECONDS,
+  START_LIVES,
+  TILE,
+} from "./constants.js";
+import { getMeta } from "./meta.js";
 
-/** @type {'title' | 'playing' | 'cleared' | 'dead' | 'won'} */
+/** @typedef {'title' | 'playing' | 'paused' | 'cleared' | 'dead' | 'won' | 'replaying' | 'settings'} GameState */
+/** @typedef {'normal' | 'lockdown' | 'timeAttack'} RunMode */
+
+/** @type {GameState} */
 export let state = "title";
 export let score = 0;
 export let lives = START_LIVES;
@@ -11,6 +25,18 @@ export let shake = 0;
 export let shakeX = 0;
 export let shakeY = 0;
 export let levelIndex = 0;
+export let hitStop = 0;
+export let crackFlash = 0;
+export let combo = 0;
+export let comboTimer = 0;
+export let maxCombo = 0;
+export let runDeaths = 0;
+export let sectorElapsed = 0;
+/** @type {RunMode} */
+export let runMode = "normal";
+export let timeAttackSector = 0;
+export let scoreMult = 1;
+export let enemySpeedMult = 1;
 
 export const camera = { x: 0, y: 0 };
 
@@ -25,6 +51,7 @@ export const level = {
   hazards: [],
   coins: [],
   enemies: [],
+  checkpoints: [],
 };
 
 export const player = {
@@ -40,6 +67,12 @@ export const player = {
   onGround: false,
   coyote: 0,
   jumpBuffer: 0,
+  airJumps: 0,
+  maxAirJumps: 0,
+  dashCd: 0,
+  dashTimer: 0,
+  dashDir: 1,
+  canDash: false,
   anim: "idle",
   frame: 0,
   frameTimer: 0,
@@ -53,17 +86,75 @@ export const checkpoint = { x: 0, y: 0 };
 
 export let reduceMotion = false;
 export let preferTouch = false;
+export let colorblind = false;
 
 /** Per-run tallies for end screen / leaderboard honesty */
 export let runCoins = 0;
 export let runStomps = 0;
 export let runElapsed = 0;
 
+/** Ring buffer for death replay */
+const REPLAY_LEN = Math.ceil(REPLAY_SECONDS * REPLAY_SAMPLE_HZ);
+/** @type {{ x: number, y: number, facing: number, anim: string, frame: number, dash: boolean }[]} */
+export const replayBuffer = new Array(REPLAY_LEN);
+export let replayWrite = 0;
+export let replayCount = 0;
+export let replayPlay = 0;
+export let replayDuration = 0;
+export let replayElapsed = 0;
+
 export function resetRunStats() {
   runCoins = 0;
   runStomps = 0;
   runElapsed = 0;
+  runDeaths = 0;
+  maxCombo = 0;
+  combo = 0;
+  comboTimer = 0;
+  sectorElapsed = 0;
   nextExtraLifeAt = EXTRA_LIFE_EVERY;
+  clearReplay();
+}
+
+export function clearReplay() {
+  replayWrite = 0;
+  replayCount = 0;
+  replayPlay = 0;
+  replayDuration = 0;
+}
+
+export function pushReplaySample() {
+  replayBuffer[replayWrite] = {
+    x: player.x,
+    y: player.y,
+    facing: player.facing,
+    anim: player.anim,
+    frame: player.frame,
+    dash: player.dashTimer > 0,
+  };
+  replayWrite = (replayWrite + 1) % REPLAY_LEN;
+  replayCount = Math.min(REPLAY_LEN, replayCount + 1);
+}
+
+export function beginReplayPlayback() {
+  replayPlay = 0;
+  replayElapsed = 0;
+  replayDuration = Math.min(REPLAY_SECONDS, replayCount / REPLAY_SAMPLE_HZ);
+}
+
+export function addReplayElapsed(dt) {
+  replayElapsed += dt;
+  return replayElapsed;
+}
+
+export function sampleReplayAt(t) {
+  if (replayCount <= 0) return null;
+  const idxFromEnd = Math.min(
+    replayCount - 1,
+    Math.max(0, Math.floor(t * REPLAY_SAMPLE_HZ))
+  );
+  const i = (replayWrite - replayCount + idxFromEnd + REPLAY_LEN * 2) % REPLAY_LEN;
+  return replayBuffer[i] || null;
 }
 
 export function addRunCoin(n = 1) {
@@ -74,8 +165,33 @@ export function addRunStomp(n = 1) {
   runStomps += n;
 }
 
+export function addRunDeath() {
+  runDeaths += 1;
+}
+
 export function addRunElapsed(dt) {
   runElapsed += dt;
+  sectorElapsed += dt;
+}
+
+export function resetSectorElapsed() {
+  sectorElapsed = 0;
+}
+
+export function setCombo(n) {
+  combo = n;
+  if (n > maxCombo) maxCombo = n;
+}
+
+export function setComboTimer(t) {
+  comboTimer = t;
+}
+
+export function tickCombo(dt) {
+  if (comboTimer > 0) {
+    comboTimer = Math.max(0, comboTimer - dt);
+    if (comboTimer <= 0) combo = 0;
+  }
 }
 
 export function initMediaFlags(onChange) {
@@ -83,7 +199,11 @@ export function initMediaFlags(onChange) {
   const coarseQuery = window.matchMedia("(pointer: coarse)");
 
   const refresh = () => {
-    reduceMotion = motionQuery.matches;
+    const meta = getMeta();
+    colorblind = !!meta.colorblind;
+    if (meta.forceReduceMotion === true) reduceMotion = true;
+    else if (meta.forceReduceMotion === false) reduceMotion = false;
+    else reduceMotion = motionQuery.matches;
     preferTouch = coarseQuery.matches;
     onChange?.();
   };
@@ -91,6 +211,7 @@ export function initMediaFlags(onChange) {
   refresh();
   motionQuery.addEventListener("change", refresh);
   coarseQuery.addEventListener("change", refresh);
+  return refresh;
 }
 
 export function setState(next) {
@@ -110,7 +231,8 @@ export function setScore(next) {
  * @returns {number} Lives granted this call (0 if none / at soft cap).
  */
 export function addScore(delta) {
-  score += delta;
+  const applied = Math.round(delta * scoreMult);
+  score += applied;
   let gained = 0;
   while (score >= nextExtraLifeAt) {
     if (lives < MAX_LIVES) {
@@ -141,4 +263,42 @@ export function setShakeOffset(x, y) {
 
 export function decayShake(dt) {
   shake = Math.max(0, shake - dt);
+}
+
+export function setHitStop(sec) {
+  hitStop = Math.max(hitStop, sec);
+}
+
+export function tickHitStop(dt) {
+  hitStop = Math.max(0, hitStop - dt);
+}
+
+export function setCrackFlash(sec) {
+  crackFlash = sec;
+}
+
+export function tickCrack(dt) {
+  crackFlash = Math.max(0, crackFlash - dt);
+}
+
+/**
+ * @param {RunMode} mode
+ * @param {number} [sector]
+ */
+export function configureRunMode(mode, sector = 0) {
+  runMode = mode;
+  timeAttackSector = sector;
+  if (mode === "lockdown") {
+    scoreMult = LOCKDOWN_SCORE_MULT;
+    enemySpeedMult = LOCKDOWN_SPEED_MULT;
+    lives = LOCKDOWN_START_LIVES;
+  } else {
+    scoreMult = 1;
+    enemySpeedMult = 1;
+    lives = START_LIVES;
+  }
+}
+
+export function startingLivesForMode() {
+  return runMode === "lockdown" ? LOCKDOWN_START_LIVES : START_LIVES;
 }

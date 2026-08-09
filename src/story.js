@@ -26,13 +26,23 @@ export const RUN_STORY = {
   /** @param {number} score */
   win: (score) =>
     `City core jacked. Lights flicker back — for now. DATA ${String(score).padStart(4, "0")}.`,
+  lockdownWin: (score) =>
+    `Lockdown broken. The grid remembers your tag. DATA ${String(score).padStart(4, "0")}.`,
 };
 
 export const BOSS_STORY = {
   online: "CYBER-REX ONLINE. Vault guardian engaged.",
+  armorBreak: "CYBER-REX ARMOR CRACKED. Slam protocols online.",
   overclock: "CYBER-REX OVERCLOCKED. Core defense surging.",
   down: "CYBER-REX DOWN. City core unlocked.",
-  exitLocked: "EXIT LOCKED. Defeat Cyber-Rex to jack the core.",
+  exitLocked: "EXIT LOCKED. Defeat the guardian to jack the core.",
+  sentinelOnline: "TOWER SENTINEL ONLINE. Clear the uplink ledge.",
+  sentinelDown: "TOWER SENTINEL DOWN. Ascender uplink open.",
+};
+
+export const ABILITY_STORY = {
+  doubleJump: "AIR JUMP ONLINE. Press jump again mid-air.",
+  dash: "DASH ONLINE. Hold Shift / tap DASH to burst.",
 };
 
 /** @type {readonly SectorStory[]} */
@@ -46,31 +56,37 @@ export const SECTOR_STORIES = [
   {
     id: "ascender",
     name: "ASCENDER",
-    brief: "Climb the corp-locked uplink towers.",
-    clear: "Towers clear. Needle defense ahead.",
+    brief: "Climb the corp-locked uplink towers. A sentinel guards the top.",
+    clear: "Towers clear. Needle defense ahead — air jump unlocked.",
   },
   {
     id: "needle-path",
     name: "NEEDLE PATH",
-    brief: "Slip the thinned kill-grid meant for tourists.",
+    brief: "Slip the thinned kill-grid. Air jump is live.",
     clear: "Needle grid cracked. Swarm response inbound.",
   },
   {
     id: "swarm-grid",
     name: "SWARM GRID",
     brief: "Cut through the hive before it closes the lanes.",
-    clear: "Swarm broken. Only blackout remains.",
+    clear: "Swarm broken. Overclock span ahead.",
+  },
+  {
+    id: "overclock-span",
+    name: "OVERCLOCK SPAN",
+    brief: "Armored climb through a hot span. Lasers sync to the beat.",
+    clear: "Span cracked. Dash unlocked for blackout.",
   },
   {
     id: "blackout-run",
     name: "BLACKOUT RUN",
-    brief: "Power dies. Climb to the vault door.",
+    brief: "Power dies. Dash the gauntlet and climb to the vault door.",
     clear: "Vault door open. Cyber-Rex waits in the core.",
   },
   {
     id: "rex-core",
     name: "REX CORE",
-    brief: "Vault guardian online. Stomp Cyber-Rex and jack the core.",
+    brief: "Vault guardian online. Break its phases and jack the core.",
     clear: "Core unlocked.",
   },
 ];
