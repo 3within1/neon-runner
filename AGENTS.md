@@ -24,4 +24,4 @@ For non-trivial changes, use the repo-scoped subagents in `.cursor/agents/` (pin
 2. `@implementer` — makes the minimal change and runs `npm run lint` + `npm test`, reporting output.
 3. `@verifier` — skeptical, read-only gate; re-runs the checks and validates the diff against the plan and the version-sync rule before the work is trusted.
 
-Model guidance: keep the loop on Composer 2.5 (or Grok 4.5 at `medium` effort for heavier multi-file reasoning). Only escalate to a frontier model if `@verifier` keeps failing on the same issue. Review with Agent Review (Quick) locally and Bugbot on PRs; Bugbot uses `.cursor/BUGBOT.md` for this repo's review priorities (note: `.cursor/rules/*` do NOT apply to Bugbot).
+Model guidance: keep the loop on Composer 2.5 (or Grok 4.5 at `medium` effort for heavier multi-file reasoning). Only escalate to a frontier model if `@verifier` keeps failing on the same issue. For code review, use in-editor Agent Review (Quick depth) — run `/agent-review` or review local changes from the Source Control tab; reserve Deep depth for risky/security-sensitive code.
