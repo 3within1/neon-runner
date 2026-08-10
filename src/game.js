@@ -231,7 +231,36 @@ function syncReplayPose(t) {
 
 let last = performance.now();
 
+/** Distinct frame-error messages already logged, with occurrence counts. */
+const frameErrorCounts = new Map();
+
+/**
+ * Keep the render loop alive if an update throws. Logs loudly (deduped by
+ * message) so failures stay visible instead of silently freezing the game —
+ * a single exception used to stop requestAnimationFrame entirely.
+ */
+function reportFrameError(err) {
+  const key = (err && err.message) || String(err);
+  const seen = frameErrorCounts.get(key) || 0;
+  frameErrorCounts.set(key, seen + 1);
+  if (seen === 0) {
+    console.error("[neon-runner] frame update error (loop kept alive):", err);
+  } else if ((seen + 1) % 300 === 0) {
+    console.error(`[neon-runner] frame error repeated ${seen + 1}x:`, key);
+  }
+}
+
 function frame(now) {
+  try {
+    stepFrame(now);
+  } catch (err) {
+    reportFrameError(err);
+  } finally {
+    requestAnimationFrame(frame);
+  }
+}
+
+function stepFrame(now) {
   const rawDt = Math.max(0, (now - last) / 1000);
   const dt = Math.min(0.033, rawDt);
   last = now;
@@ -265,7 +294,6 @@ function frame(now) {
   }
 
   draw();
-  requestAnimationFrame(frame);
 }
 
 /**
