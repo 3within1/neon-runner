@@ -180,6 +180,10 @@ export function resetSectorElapsed() {
   sectorElapsed = 0;
 }
 
+export function nextComboOnStomp(currentCombo, currentTimer) {
+  return currentCombo > 0 && currentTimer > 0 ? currentCombo + 1 : 1;
+}
+
 export function setCombo(n) {
   combo = n;
   if (n > maxCombo) maxCombo = n;

@@ -8,6 +8,7 @@ import {
   enemySpeedMult,
   lives,
   maxCombo,
+  nextComboOnStomp,
   resetRunStats,
   scoreMult,
   setCombo,
@@ -51,6 +52,12 @@ test("addScore grants an extra life per threshold crossed", () => {
   const gained = addScore(1); // crosses EXTRA_LIFE_EVERY exactly
   assert.equal(gained, 1, "one life at the threshold");
   assert.equal(lives, START_LIVES + 1, "life total incremented");
+});
+
+test("nextComboOnStomp chains while the window is open", () => {
+  assert.equal(nextComboOnStomp(0, 0), 1);
+  assert.equal(nextComboOnStomp(2, 0.5), 3);
+  assert.equal(nextComboOnStomp(4, 0), 1);
 });
 
 test("configureRunMode applies lockdown multipliers and starting lives", () => {

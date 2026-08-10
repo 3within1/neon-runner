@@ -55,6 +55,7 @@ import {
   pushReplaySample,
   reduceMotion,
   practiceMode,
+  nextComboOnStomp,
   resetRunStats,
   resetSectorElapsed,
   runElapsed,
@@ -590,7 +591,7 @@ function updateBossChase(e, dt) {
 }
 
 function registerStomp(e) {
-  const next = combo > 0 && comboTimer > 0 ? combo + 1 : 1;
+  const next = nextComboOnStomp(combo, comboTimer);
   setCombo(next);
   setComboTimer(COMBO_WINDOW);
   if (next > 1 && next % COMBO_BONUS_EVERY === 0) {
