@@ -14,7 +14,7 @@ function entry(overrides) {
 }
 
 test("compareEntries breaks remaining ties with earlier timestamp", () => {
-  const earlier = entry({ at: "2026-01-01T00:00:00.000Z" };
+  const earlier = entry({ at: "2026-01-01T00:00:00.000Z" });
   const later = entry({ at: "2026-06-01T00:00:00.000Z" });
   assert.ok(compareEntries(earlier, later) < 0, "earlier ISO timestamp ranks first");
   assert.ok(compareEntries(later, earlier) > 0);
