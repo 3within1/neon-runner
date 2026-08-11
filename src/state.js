@@ -1,4 +1,6 @@
 import {
+  COMBO_BONUS_DATA,
+  COMBO_BONUS_EVERY,
   EXTRA_LIFE_EVERY,
   LOCKDOWN_SCORE_MULT,
   LOCKDOWN_SPEED_MULT,
@@ -8,6 +10,8 @@ import {
   REPLAY_SECONDS,
   START_LIVES,
   TILE,
+  UNLOCK_DASH_SECTOR,
+  UNLOCK_DOUBLE_JUMP_SECTOR,
 } from "./constants.js";
 import { getMeta } from "./meta.js";
 
@@ -178,6 +182,28 @@ export function addRunElapsed(dt) {
 
 export function resetSectorElapsed() {
   sectorElapsed = 0;
+}
+
+/** Fresh stomp starts at 1; an active window extends the chain. */
+export function nextComboOnStomp(currentCombo, currentTimer) {
+  return currentCombo > 0 && currentTimer > 0 ? currentCombo + 1 : 1;
+}
+
+/** DATA awarded when a stomp lands on a combo milestone (0 otherwise). */
+export function comboBonusForStomp(nextCombo) {
+  return nextCombo > 1 && nextCombo % COMBO_BONUS_EVERY === 0 ? COMBO_BONUS_DATA : 0;
+}
+
+/**
+ * Sector-gated mobility for a campaign index (0-based).
+ * @param {number} sectorIndex
+ */
+export function abilitiesForSector(sectorIndex) {
+  const idx = Number.isFinite(sectorIndex) ? sectorIndex : 0;
+  return {
+    maxAirJumps: idx >= UNLOCK_DOUBLE_JUMP_SECTOR ? 1 : 0,
+    canDash: idx >= UNLOCK_DASH_SECTOR,
+  };
 }
 
 export function setCombo(n) {

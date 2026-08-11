@@ -1,21 +1,35 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
+  abilitiesForSector,
   addScore,
   combo,
+  comboBonusForStomp,
   comboTimer,
   configureRunMode,
   enemySpeedMult,
   lives,
   maxCombo,
+  nextComboOnStomp,
   resetRunStats,
   scoreMult,
   setCombo,
   setComboTimer,
+  setLives,
   setScore,
   tickCombo,
 } from "../src/state.js";
-import { COMBO_WINDOW, EXTRA_LIFE_EVERY, LOCKDOWN_START_LIVES, START_LIVES } from "../src/constants.js";
+import {
+  COMBO_BONUS_DATA,
+  COMBO_BONUS_EVERY,
+  COMBO_WINDOW,
+  EXTRA_LIFE_EVERY,
+  LOCKDOWN_START_LIVES,
+  MAX_LIVES,
+  START_LIVES,
+  UNLOCK_DASH_SECTOR,
+  UNLOCK_DOUBLE_JUMP_SECTOR,
+} from "../src/constants.js";
 
 // state.js is a module-level singleton; these tests import the live bindings
 // (which reflect the latest values) and reset between assertions.
@@ -63,4 +77,46 @@ test("configureRunMode applies lockdown multipliers and starting lives", () => {
   assert.equal(scoreMult, 1, "normal resets score multiplier");
   assert.equal(enemySpeedMult, 1, "normal resets enemy speed");
   assert.equal(lives, START_LIVES, "normal starting lives");
+});
+
+test("nextComboOnStomp chains while the window is open", () => {
+  assert.equal(nextComboOnStomp(0, 0), 1, "first stomp starts a chain");
+  assert.equal(nextComboOnStomp(2, 0.5), 3, "active window extends the combo");
+  assert.equal(nextComboOnStomp(4, 0), 1, "expired window resets to 1");
+});
+
+test("comboBonusForStomp awards DATA on every Nth chained stomp", () => {
+  assert.equal(comboBonusForStomp(1), 0, "opening stomp has no bonus");
+  assert.equal(comboBonusForStomp(COMBO_BONUS_EVERY - 1), 0, "pre-milestone stomp");
+  assert.equal(comboBonusForStomp(COMBO_BONUS_EVERY), COMBO_BONUS_DATA, "milestone awards bonus");
+  assert.equal(comboBonusForStomp(COMBO_BONUS_EVERY * 2), COMBO_BONUS_DATA, "later milestones also award");
+  assert.equal(comboBonusForStomp(0), 0, "non-positive combo awards nothing");
+});
+
+test("abilitiesForSector gates air-jump and dash by campaign index", () => {
+  assert.deepEqual(abilitiesForSector(UNLOCK_DOUBLE_JUMP_SECTOR - 1), {
+    maxAirJumps: 0,
+    canDash: false,
+  });
+  assert.deepEqual(abilitiesForSector(UNLOCK_DOUBLE_JUMP_SECTOR), {
+    maxAirJumps: 1,
+    canDash: false,
+  });
+  assert.deepEqual(abilitiesForSector(UNLOCK_DASH_SECTOR - 1), {
+    maxAirJumps: 1,
+    canDash: false,
+  });
+  assert.deepEqual(abilitiesForSector(UNLOCK_DASH_SECTOR), {
+    maxAirJumps: 1,
+    canDash: true,
+  });
+});
+
+test("addScore stops granting lives at the soft cap", () => {
+  resetRunStats();
+  configureRunMode("normal");
+  setLives(MAX_LIVES);
+  setScore(EXTRA_LIFE_EVERY - 1);
+  assert.equal(addScore(1), 0, "no life granted at the soft cap");
+  assert.equal(lives, MAX_LIVES, "lives remain at soft cap");
 });

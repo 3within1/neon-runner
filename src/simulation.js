@@ -1,6 +1,4 @@
 import {
-  COMBO_BONUS_DATA,
-  COMBO_BONUS_EVERY,
   COMBO_WINDOW,
   COYOTE_TIME,
   DASH_COOLDOWN,
@@ -19,8 +17,6 @@ import {
   STOMP_BOUNCE,
   STOMP_SLACK,
   TILE,
-  UNLOCK_DASH_SECTOR,
-  UNLOCK_DOUBLE_JUMP_SECTOR,
 } from "./constants.js";
 import { W, H } from "./dom.js";
 import { input } from "./input.js";
@@ -55,6 +51,9 @@ import {
   pushReplaySample,
   reduceMotion,
   practiceMode,
+  abilitiesForSector,
+  comboBonusForStomp,
+  nextComboOnStomp,
   resetRunStats,
   resetSectorElapsed,
   runElapsed,
@@ -116,9 +115,9 @@ export function setCheckpoint(x, y) {
 }
 
 function syncAbilities() {
-  const idx = levelIndex;
-  player.maxAirJumps = idx >= UNLOCK_DOUBLE_JUMP_SECTOR ? 1 : 0;
-  player.canDash = idx >= UNLOCK_DASH_SECTOR;
+  const { maxAirJumps, canDash } = abilitiesForSector(levelIndex);
+  player.maxAirJumps = maxAirJumps;
+  player.canDash = canDash;
   if (player.maxAirJumps > 0 && !abilityAnnouncedDouble) {
     abilityAnnouncedDouble = true;
     announce(ABILITY_STORY.doubleJump);
@@ -590,11 +589,12 @@ function updateBossChase(e, dt) {
 }
 
 function registerStomp(e) {
-  const next = combo > 0 && comboTimer > 0 ? combo + 1 : 1;
+  const next = nextComboOnStomp(combo, comboTimer);
   setCombo(next);
   setComboTimer(COMBO_WINDOW);
-  if (next > 1 && next % COMBO_BONUS_EVERY === 0) {
-    awardScore(COMBO_BONUS_DATA);
+  const bonus = comboBonusForStomp(next);
+  if (bonus > 0) {
+    awardScore(bonus);
     sfx.combo();
     announce(`COMBO x${next}`);
   }

@@ -6,8 +6,10 @@ import {
   getActiveSkin,
   getBestClearTime,
   getMeta,
+  markCleared,
   recordClearTime,
   recordSectorTime,
+  setSkin,
 } from "../src/meta.js";
 
 // meta.js falls back to in-memory defaults when localStorage is unavailable
@@ -50,4 +52,23 @@ test("getActiveSkin returns a valid skin definition", () => {
   const skin = getActiveSkin();
   assert.ok(skin && typeof skin.id === "string", "has an id");
   assert.ok(typeof skin.accent === "string", "has an accent color");
+});
+
+test("markCleared unlocks ember; lockdown clear also unlocks lockdown skin", () => {
+  assert.equal(getMeta().unlockedSkins.includes("ember"), false);
+  markCleared(false);
+  assert.equal(getMeta().unlockedSkins.includes("ember"), true);
+  assert.equal(getMeta().unlockedSkins.includes("lockdown"), false);
+  assert.equal(getMeta().hasCleared, true);
+
+  markCleared(true);
+  assert.equal(getMeta().lockdownCleared, true);
+  assert.equal(getMeta().unlockedSkins.includes("lockdown"), true);
+});
+
+test("setSkin refuses skins that are still locked", () => {
+  const before = getMeta().skin;
+  // Ensure a never-unlocked id is rejected (ember/lockdown may already be unlocked above).
+  const lockedId = "not-a-real-skin";
+  assert.equal(setSkin(lockedId), before, "unknown/locked skin leaves selection unchanged");
 });
