@@ -13,8 +13,8 @@ import {
   getLevelCount,
   getLivingBoss,
   isExitLocked,
-  level,
 } from "../src/level.js";
+import { level } from "../src/state.js";
 
 test("ENEMY_TYPES score fields stay aligned with SCORE_* constants", () => {
   assert.equal(ENEMY_TYPES.drone.score, SCORE_STOMP);
