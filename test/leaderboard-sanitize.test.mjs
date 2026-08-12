@@ -29,14 +29,14 @@ beforeEach(() => {
 });
 
 function seed(rows) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(rows));
+  globalThis.localStorage.setItem(STORAGE_KEY, JSON.stringify(rows));
 }
 
 test("getScores returns [] for missing, non-array, or corrupt JSON", () => {
   assert.deepEqual(getScores(), []);
-  localStorage.setItem(STORAGE_KEY, "{not-json");
+  globalThis.localStorage.setItem(STORAGE_KEY, "{not-json");
   assert.deepEqual(getScores(), []);
-  localStorage.setItem(STORAGE_KEY, JSON.stringify({ score: 10 }));
+  globalThis.localStorage.setItem(STORAGE_KEY, JSON.stringify({ score: 10 }));
   assert.deepEqual(getScores(), []);
 });
 
@@ -85,9 +85,9 @@ test("getScores defaults missing sector (won→5, dead→1) and floors score", (
 });
 
 test("migrateScoreStorage removes pre-v3 legacy keys", () => {
-  localStorage.setItem(LEGACY_KEY, JSON.stringify([{ score: 1 }]));
-  localStorage.setItem(STORAGE_KEY, JSON.stringify([]));
+  globalThis.localStorage.setItem(LEGACY_KEY, JSON.stringify([{ score: 1 }]));
+  globalThis.localStorage.setItem(STORAGE_KEY, JSON.stringify([]));
   migrateScoreStorage();
-  assert.equal(localStorage.getItem(LEGACY_KEY), null);
-  assert.ok(localStorage.getItem(STORAGE_KEY) !== null, "v3 key retained");
+  assert.equal(globalThis.localStorage.getItem(LEGACY_KEY), null);
+  assert.ok(globalThis.localStorage.getItem(STORAGE_KEY) !== null, "v3 key retained");
 });
