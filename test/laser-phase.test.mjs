@@ -13,8 +13,9 @@ test("isLaserHazardOn is active for the first 45% of each period", () => {
 test("isLaserHazardOn wraps across period boundaries", () => {
   const period = 1.0;
   assert.equal(isLaserHazardOn(1.0, 0, period), true, "exactly one period resets to on");
-  assert.equal(isLaserHazardOn(1.44, 0, period), true);
-  assert.equal(isLaserHazardOn(1.45, 0, period), false);
+  assert.equal(isLaserHazardOn(1.4, 0, period), true);
+  // Stay clear of the 0.45 boundary — `1.45 % 1` is float-noisy in JS.
+  assert.equal(isLaserHazardOn(1.5, 0, period), false);
 });
 
 test("isLaserHazardOn respects phase offset and default period", () => {
