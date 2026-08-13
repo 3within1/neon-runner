@@ -26,6 +26,7 @@ import {
   level,
   levelIndex,
   addReplayElapsed,
+  noteFrameError,
   player,
   practiceMode,
   replayDuration,
@@ -240,13 +241,11 @@ const frameErrorCounts = new Map();
  * a single exception used to stop requestAnimationFrame entirely.
  */
 function reportFrameError(err) {
-  const key = (err && err.message) || String(err);
-  const seen = frameErrorCounts.get(key) || 0;
-  frameErrorCounts.set(key, seen + 1);
-  if (seen === 0) {
+  const { key, kind, count } = noteFrameError(frameErrorCounts, err);
+  if (kind === "first") {
     console.error("[neon-runner] frame update error (loop kept alive):", err);
-  } else if ((seen + 1) % 300 === 0) {
-    console.error(`[neon-runner] frame error repeated ${seen + 1}x:`, key);
+  } else if (kind === "repeat") {
+    console.error(`[neon-runner] frame error repeated ${count}x:`, key);
   }
 }
 

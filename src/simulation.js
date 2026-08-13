@@ -25,13 +25,16 @@ import {
 import { W, H } from "./dom.js";
 import { input } from "./input.js";
 import {
+  armCollapsePlatform,
   buildLevel,
   enemyBody,
   getLevelCount,
   getLevelDef,
   getLivingBoss,
   isExitLocked,
+  isLaserHazardOn,
   solidPlatforms,
+  tickCollapsePlatform,
 } from "./level.js";
 import { aabb, resolveAxis, segmentHitsRect } from "./physics.js";
 import { sfx, stopMusic } from "./audio.js";
@@ -406,13 +409,12 @@ export function updatePlayer(dt) {
     }
     // Collapse platforms underfoot
     for (const p of level.platforms) {
-      if (p.kind !== "collapse" || p.fallen) continue;
       if (
         player.x + player.w > p.x &&
         player.x < p.x + p.w &&
         Math.abs(player.y + player.h - p.y) < 3
       ) {
-        if (p.collapseTimer <= 0) p.collapseTimer = 0.45;
+        armCollapsePlatform(p);
       }
     }
   }
@@ -709,9 +711,7 @@ export function updateHazards(dt) {
 
   for (const h of level.hazards) {
     if (h.kind === "laser") {
-      const period = h.period || 1.2;
-      const t = (performance.now() / 1000 + h.phase * period) % period;
-      h.on = t < period * 0.45;
+      h.on = isLaserHazardOn(performance.now() / 1000, h.phase, h.period || 1.2);
     } else if (h.kind === "electric") {
       h.on = true;
       h.pulse = 0.5 + 0.5 * Math.sin((performance.now() / 1000) * (Math.PI * 2) / beat);
@@ -738,27 +738,7 @@ export function updateHazards(dt) {
 
 export function updateCollapse(dt) {
   for (const p of level.platforms) {
-    if (p.kind !== "collapse") continue;
-    if (p.fallen) {
-      p.respawnTimer -= dt;
-      if (p.respawnTimer <= 0) {
-        p.fallen = false;
-        p.collapseTimer = 0;
-        p.shake = 0;
-      }
-      continue;
-    }
-    if (p.collapseTimer > 0) {
-      p.collapseTimer -= dt;
-      p.shake = 1;
-      if (p.collapseTimer <= 0) {
-        p.fallen = true;
-        p.respawnTimer = 2.4;
-        p.shake = 0;
-      }
-    } else {
-      p.shake = 0;
-    }
+    tickCollapsePlatform(p, dt);
   }
 }
 

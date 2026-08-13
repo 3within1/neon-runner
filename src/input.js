@@ -97,6 +97,21 @@ export function isRebinding() {
   return listeningAction != null;
 }
 
+/**
+ * Assign `code` to `action` and clear any other action that used the same code
+ * so a rebind never leaves two actions on one key.
+ * @param {Record<string, string>} current
+ * @param {string} action
+ * @param {string} code
+ */
+export function bindingsWithExclusiveCode(current, action, code) {
+  const next = { ...current, [action]: code };
+  for (const key of Object.keys(next)) {
+    if (key !== action && next[key] === code) next[key] = "";
+  }
+  return next;
+}
+
 export function applyBindings(next) {
   bindings = { ...DEFAULT_BINDINGS, ...next };
   saveMeta({ bindings });
@@ -173,11 +188,7 @@ export function initInput(options) {
         return;
       }
       const action = listeningAction;
-      const next = { ...bindings, [action]: e.code };
-      // Prevent duplicate codes on other actions
-      for (const key of Object.keys(next)) {
-        if (key !== action && next[key] === e.code) next[key] = "";
-      }
+      const next = bindingsWithExclusiveCode(bindings, action, e.code);
       applyBindings(next);
       listeningAction = null;
       onRebind?.(action, e.code);

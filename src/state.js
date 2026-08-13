@@ -308,3 +308,20 @@ export function setPracticeMode(on) {
 export function startingLivesForMode() {
   return runMode === "lockdown" ? LOCKDOWN_START_LIVES : START_LIVES;
 }
+
+/**
+ * Deduped frame-error logging policy for the rAF loop (#18).
+ * Mutates `counts` (message → occurrence). Returns whether/how to log.
+ * @param {Map<string, number>} counts
+ * @param {unknown} err
+ * @returns {{ key: string, kind: 'first' | 'repeat' | 'silent', count: number }}
+ */
+export function noteFrameError(counts, err) {
+  const key = (err && /** @type {{ message?: string }} */ (err).message) || String(err);
+  const seen = counts.get(key) || 0;
+  const count = seen + 1;
+  counts.set(key, count);
+  if (seen === 0) return { key, kind: "first", count };
+  if (count % 300 === 0) return { key, kind: "repeat", count };
+  return { key, kind: "silent", count };
+}
