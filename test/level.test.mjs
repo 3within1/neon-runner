@@ -1,7 +1,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { TILE } from "../src/constants.js";
-import { buildLevel, enemyBody, getLivingBoss } from "../src/level.js";
+import { buildLevel, enemyBody, getLivingBoss, solidPlatforms } from "../src/level.js";
+import { wallClingDir } from "../src/physics.js";
 import { level } from "../src/state.js";
 
 test("Ascender sentinel patrols the summit arena", () => {
@@ -17,6 +18,16 @@ test("Ascender has tall cling shafts for wall jump", () => {
   buildLevel(1);
   const shafts = level.platforms.filter((p) => p.h >= 8 * TILE && p.w <= TILE);
   assert.ok(shafts.length >= 2, "expected mirrored cling shafts");
+});
+
+test("holding into an Ascender cling shaft registers wall contact", () => {
+  buildLevel(1);
+  const platforms = solidPlatforms();
+  const left = platforms.find((p) => p.w <= TILE && p.h >= 8 * TILE && p.x < 20 * TILE);
+  assert.ok(left, "left cling shaft");
+  const box = { x: left.x - 28, y: left.y + 80, w: 28, h: 40 };
+  assert.equal(wallClingDir(box, platforms, false, true), 1);
+  assert.equal(wallClingDir(box, platforms, true, false), 0);
 });
 
 test("enemyBody uses raw bounds for grounded enemies", () => {

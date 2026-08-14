@@ -273,9 +273,9 @@ export const LEVELS = [
      * sentinel arena at the summit so wall cling has real vertical faces.
      */
     platforms: [
-      [0, 12, 12, 2],
+      [0, 12, 11, 2],
       [16, 12, 32, 2],
-      [52, 12, 12, 2],
+      [53, 12, 11, 2],
       // Cling shafts (mirrored)
       [12, 3, 1, 9],
       [51, 3, 1, 9],
@@ -336,9 +336,9 @@ export const LEVELS = [
       [55, 11],
     ],
     enemies: [
-      [4, 11, 1, 11, "drone"],
+      [4, 11, 1, 10, "drone"],
       [30, 11, 18, 46, "drone"],
-      [56, 11, 53, 63, "drone"],
+      [56, 11, 54, 63, "drone"],
       [12, 6, 3, 11, "climber"],
       [51, 6, 3, 11, "climber"],
       // Tower Sentinel — locked to the continuous summit arena [14, 50)
