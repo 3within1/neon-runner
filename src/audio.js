@@ -288,6 +288,10 @@ export const sfx = {
     tone(740, 0.05, "square", 0.07);
     tone(990, 0.08, "square", 0.06, null, 0.04);
   },
+  turret() {
+    tone(240, 0.06, "sawtooth", 0.07, 120);
+    noiseBurst(0.04, 0.05, 1200);
+  },
 };
 
 /*

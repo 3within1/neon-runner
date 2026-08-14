@@ -29,6 +29,7 @@ import {
   START_LIVES,
   UNLOCK_DASH_SECTOR,
   UNLOCK_DOUBLE_JUMP_SECTOR,
+  UNLOCK_WALL_CLING_SECTOR,
 } from "../src/constants.js";
 
 // state.js is a module-level singleton; these tests import the live bindings
@@ -93,22 +94,31 @@ test("comboBonusForStomp awards DATA on every Nth chained stomp", () => {
   assert.equal(comboBonusForStomp(0), 0, "non-positive combo awards nothing");
 });
 
-test("abilitiesForSector gates air-jump and dash by campaign index", () => {
-  assert.deepEqual(abilitiesForSector(UNLOCK_DOUBLE_JUMP_SECTOR - 1), {
+test("abilitiesForSector gates wall cling, air-jump, and dash by campaign index", () => {
+  assert.deepEqual(abilitiesForSector(UNLOCK_WALL_CLING_SECTOR - 1), {
     maxAirJumps: 0,
     canDash: false,
+    canWallCling: false,
+  });
+  assert.deepEqual(abilitiesForSector(UNLOCK_WALL_CLING_SECTOR), {
+    maxAirJumps: 0,
+    canDash: false,
+    canWallCling: true,
   });
   assert.deepEqual(abilitiesForSector(UNLOCK_DOUBLE_JUMP_SECTOR), {
     maxAirJumps: 1,
     canDash: false,
+    canWallCling: true,
   });
   assert.deepEqual(abilitiesForSector(UNLOCK_DASH_SECTOR - 1), {
     maxAirJumps: 1,
     canDash: false,
+    canWallCling: true,
   });
   assert.deepEqual(abilitiesForSector(UNLOCK_DASH_SECTOR), {
     maxAirJumps: 1,
     canDash: true,
+    canWallCling: true,
   });
 });
 

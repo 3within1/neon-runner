@@ -12,6 +12,7 @@ import {
   TILE,
   UNLOCK_DASH_SECTOR,
   UNLOCK_DOUBLE_JUMP_SECTOR,
+  UNLOCK_WALL_CLING_SECTOR,
 } from "./constants.js";
 import { getMeta } from "./meta.js";
 
@@ -58,6 +59,8 @@ export const level = {
   coins: [],
   enemies: [],
   checkpoints: [],
+  /** @type {{ x: number, y: number, w: number, h: number, vx: number, vy: number, life: number }[]} */
+  projectiles: [],
 };
 
 export const player = {
@@ -79,6 +82,11 @@ export const player = {
   dashTimer: 0,
   dashDir: 1,
   canDash: false,
+  canWallCling: false,
+  /** -1 left wall, 1 right wall, 0 none */
+  wallDir: 0,
+  /** Remaining cling grace (seconds) */
+  wallCling: 0,
   anim: "idle",
   frame: 0,
   frameTimer: 0,
@@ -203,6 +211,7 @@ export function abilitiesForSector(sectorIndex) {
   return {
     maxAirJumps: idx >= UNLOCK_DOUBLE_JUMP_SECTOR ? 1 : 0,
     canDash: idx >= UNLOCK_DASH_SECTOR,
+    canWallCling: idx >= UNLOCK_WALL_CLING_SECTOR,
   };
 }
 

@@ -6,6 +6,7 @@ import {
   SCORE_REX,
   SCORE_REX_BOSS,
   SCORE_STOMP,
+  SCORE_TURRET,
 } from "../src/constants.js";
 import {
   buildLevel,
@@ -22,6 +23,7 @@ test("ENEMY_TYPES score fields stay aligned with SCORE_* constants", () => {
   assert.equal(ENEMY_TYPES.needle.score, SCORE_STOMP);
   assert.equal(ENEMY_TYPES.swarm.score, SCORE_STOMP);
   assert.equal(ENEMY_TYPES.armored.score, SCORE_ARMORED);
+  assert.equal(ENEMY_TYPES.turret.score, SCORE_TURRET);
   assert.equal(ENEMY_TYPES.rex.score, SCORE_REX);
   assert.equal(ENEMY_TYPES.towerSentinel.score, SCORE_MINIBOSS);
   assert.equal(ENEMY_TYPES.rexBoss.score, SCORE_REX_BOSS);
@@ -67,4 +69,17 @@ test("boss placement: sentinel on Ascender, rexBoss only on the finale", () => {
   buildLevel(0);
   assert.equal(isExitLocked(), false, "Grid Sprint exit is unlocked");
   assert.equal(getLivingBoss(), null);
+});
+
+test("turrets sit on Needle Path, Swarm Grid, and Blackout Run", () => {
+  const expected = { 2: 2, 3: 1, 5: 1 };
+  for (const [index, count] of Object.entries(expected)) {
+    buildLevel(Number(index));
+    const turrets = level.enemies.filter((e) => e.turret || e.type === "turret");
+    assert.equal(turrets.length, count, `sector ${index} turret count`);
+    for (const t of turrets) {
+      assert.equal(t.vx, 0);
+      assert.equal(t.hp, 2);
+    }
+  }
 });

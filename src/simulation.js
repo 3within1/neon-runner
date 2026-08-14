@@ -17,6 +17,10 @@ import {
   STOMP_BOUNCE,
   STOMP_SLACK,
   TILE,
+  WALL_CLING_GRACE,
+  WALL_JUMP_VX,
+  WALL_JUMP_VY,
+  WALL_SLIDE_SPEED,
 } from "./constants.js";
 import { W, H } from "./dom.js";
 import { input } from "./input.js";
@@ -97,6 +101,7 @@ import {
 } from "./meta.js";
 import { getSectorTheme } from "./sectorTheme.js";
 
+let abilityAnnouncedWall = false;
 let abilityAnnouncedDouble = false;
 let abilityAnnouncedDash = false;
 /** @type {null | { title: string, tagline: string, button: string, eyebrow?: string, outcome: 'won' | 'dead' }} */
@@ -118,9 +123,14 @@ export function setCheckpoint(x, y) {
 }
 
 function syncAbilities() {
-  const { maxAirJumps, canDash } = abilitiesForSector(levelIndex);
+  const { maxAirJumps, canDash, canWallCling } = abilitiesForSector(levelIndex);
   player.maxAirJumps = maxAirJumps;
   player.canDash = canDash;
+  player.canWallCling = canWallCling;
+  if (player.canWallCling && !abilityAnnouncedWall) {
+    abilityAnnouncedWall = true;
+    announce(ABILITY_STORY.wallCling);
+  }
   if (player.maxAirJumps > 0 && !abilityAnnouncedDouble) {
     abilityAnnouncedDouble = true;
     announce(ABILITY_STORY.doubleJump);
@@ -169,6 +179,8 @@ export function resetPlayer(at = checkpoint) {
   player.airJumps = player.maxAirJumps;
   player.dashCd = 0;
   player.dashTimer = 0;
+  player.wallDir = 0;
+  player.wallCling = 0;
   player.anim = "idle";
   player.frame = 0;
   player.frameTimer = 0;
@@ -201,6 +213,7 @@ export function resetRun(full = false, opts = {}) {
     setScore(0);
     setLives(startingLivesForMode());
     resetRunStats();
+    abilityAnnouncedWall = false;
     abilityAnnouncedDouble = false;
     abilityAnnouncedDash = false;
     pendingEnd = null;
@@ -307,7 +320,60 @@ function tryDash() {
   player.vy = Math.min(player.vy, 0);
   player.invuln = Math.max(player.invuln, DASH_DURATION * 0.85);
   player.facing = player.dashDir;
+  player.wallDir = 0;
+  player.wallCling = 0;
   sfx.dash();
+}
+
+function detectWallCling(dt) {
+  if (!player.canWallCling || player.onGround || player.dashTimer > 0) {
+    player.wallDir = 0;
+    player.wallCling = 0;
+    return;
+  }
+  const probe = 3;
+  let dir = 0;
+  for (const p of solidPlatforms()) {
+    const overlapY = player.y + player.h > p.y + 4 && player.y < p.y + p.h - 4;
+    if (!overlapY) continue;
+    if (
+      player.x + player.w >= p.x &&
+      player.x + player.w <= p.x + probe &&
+      input.right
+    ) {
+      dir = 1;
+      break;
+    }
+    if (
+      player.x <= p.x + p.w &&
+      player.x >= p.x + p.w - probe &&
+      input.left
+    ) {
+      dir = -1;
+      break;
+    }
+  }
+  if (dir !== 0) {
+    player.wallDir = dir;
+    player.wallCling = WALL_CLING_GRACE;
+  } else {
+    player.wallCling = Math.max(0, player.wallCling - dt);
+    if (player.wallCling <= 0) player.wallDir = 0;
+  }
+}
+
+function tryWallJump() {
+  if (player.wallCling <= 0 || player.wallDir === 0 || player.onGround) return false;
+  player.vy = WALL_JUMP_VY;
+  player.vx = -player.wallDir * WALL_JUMP_VX;
+  player.facing = -player.wallDir;
+  player.wallCling = 0;
+  player.wallDir = 0;
+  player.jumpBuffer = 0;
+  player.coyote = 0;
+  player.jumpCutExempt = false;
+  sfx.jump();
+  return true;
 }
 
 export function updatePlayer(dt) {
@@ -359,7 +425,9 @@ export function updatePlayer(dt) {
   input.jumpPressed = false;
 
   if (player.dashTimer <= 0 && player.jumpBuffer > 0) {
-    if (player.coyote > 0) {
+    if (tryWallJump()) {
+      /* wall jump consumed the buffer */
+    } else if (player.coyote > 0) {
       player.vy = JUMP_VELOCITY;
       player.onGround = false;
       player.coyote = 0;
@@ -384,6 +452,9 @@ export function updatePlayer(dt) {
 
   if (player.dashTimer <= 0) {
     player.vy = Math.min(MAX_FALL, player.vy + GRAVITY * dt);
+    if (player.wallCling > 0 && player.wallDir !== 0 && player.vy > 0) {
+      player.vy = Math.min(player.vy, WALL_SLIDE_SPEED);
+    }
   }
 
   player.prevX = player.x;
@@ -397,6 +468,7 @@ export function updatePlayer(dt) {
   player.onGround = false;
   player.y += player.vy * dt;
   resolveAxis(player, platforms, "y", player.prevY);
+  detectWallCling(dt);
 
   if (player.y > pitY()) {
     hitPlayer(true);
@@ -423,13 +495,15 @@ export function updatePlayer(dt) {
   }
 
   if (player.dashTimer > 0) player.anim = "run";
-  else if (!player.onGround) player.anim = player.vy < 0 ? "jump" : "fall";
+  else if (player.wallCling > 0 && player.wallDir !== 0 && !player.onGround) {
+    player.anim = "cling";
+  } else if (!player.onGround) player.anim = player.vy < 0 ? "jump" : "fall";
   else if (Math.abs(player.vx) > 20) player.anim = "run";
   else player.anim = "idle";
 
-  const speeds = { idle: 0.18, run: 0.08, jump: 0.12, fall: 0.12 };
+  const speeds = { idle: 0.18, run: 0.08, jump: 0.12, fall: 0.12, cling: 0.16 };
   player.frameTimer += dt;
-  if (player.frameTimer > speeds[player.anim]) {
+  if (player.frameTimer > (speeds[player.anim] || 0.12)) {
     player.frameTimer = 0;
     player.frame = (player.frame + 1) % 4;
   }
@@ -606,6 +680,52 @@ function registerStomp(e) {
   }
 }
 
+function updateTurret(e, dt) {
+  e.vx = 0;
+  e.vy = 0;
+  e.fireCd = Math.max(0, e.fireCd - dt);
+  if (!level.projectiles) level.projectiles = [];
+  const dx = player.x + player.w * 0.5 - (e.x + e.w * 0.5);
+  const dy = player.y + player.h * 0.5 - (e.y + e.h * 0.35);
+  const dist = Math.hypot(dx, dy);
+  if (dist < TILE * 14 && e.fireCd <= 0 && Math.abs(dy) < TILE * 3.5) {
+    const dir = Math.sign(dx) || 1;
+    level.projectiles.push({
+      x: e.x + e.w * 0.5 - 10 + dir * 14,
+      y: e.y + e.h * 0.3,
+      w: 22,
+      h: 12,
+      vx: dir * 260,
+      vy: 0,
+      life: 2.6,
+    });
+    e.fireCd = 0.85;
+    sfx.turret();
+  }
+}
+
+export function updateProjectiles(dt) {
+  if (state !== "playing") return;
+  if (!level.projectiles) level.projectiles = [];
+  for (let i = level.projectiles.length - 1; i >= 0; i--) {
+    const p = level.projectiles[i];
+    p.life -= dt;
+    p.x += p.vx * dt;
+    p.y += p.vy * dt;
+    if (p.life <= 0) {
+      level.projectiles.splice(i, 1);
+      continue;
+    }
+    if (aabb(player, p)) {
+      // While invulnerable, let bolts pass through so they stay visible.
+      if (player.invuln > 0) continue;
+      level.projectiles.splice(i, 1);
+      if (!hitPlayer()) continue;
+      return;
+    }
+  }
+}
+
 export function updateEnemies(dt) {
   for (const e of level.enemies) {
     if (state !== "playing") return;
@@ -614,7 +734,9 @@ export function updateEnemies(dt) {
     e.bob += dt * e.bobSpeed;
     if (e.flash > 0) e.flash = Math.max(0, e.flash - dt);
 
-    if (e.chase) {
+    if (e.turret) {
+      updateTurret(e, dt);
+    } else if (e.chase) {
       updateBossChase(e, dt);
     } else if (e.axis === "y") {
       e.y += e.vy * dt;
