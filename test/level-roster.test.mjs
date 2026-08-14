@@ -1,0 +1,70 @@
+import { test } from "node:test";
+import assert from "node:assert/strict";
+import {
+  SCORE_ARMORED,
+  SCORE_MINIBOSS,
+  SCORE_REX,
+  SCORE_REX_BOSS,
+  SCORE_STOMP,
+} from "../src/constants.js";
+import {
+  buildLevel,
+  ENEMY_TYPES,
+  getLevelCount,
+  getLivingBoss,
+  isExitLocked,
+} from "../src/level.js";
+import { level } from "../src/state.js";
+
+test("ENEMY_TYPES score fields stay aligned with SCORE_* constants", () => {
+  assert.equal(ENEMY_TYPES.drone.score, SCORE_STOMP);
+  assert.equal(ENEMY_TYPES.climber.score, SCORE_STOMP);
+  assert.equal(ENEMY_TYPES.needle.score, SCORE_STOMP);
+  assert.equal(ENEMY_TYPES.swarm.score, SCORE_STOMP);
+  assert.equal(ENEMY_TYPES.armored.score, SCORE_ARMORED);
+  assert.equal(ENEMY_TYPES.rex.score, SCORE_REX);
+  assert.equal(ENEMY_TYPES.towerSentinel.score, SCORE_MINIBOSS);
+  assert.equal(ENEMY_TYPES.rexBoss.score, SCORE_REX_BOSS);
+});
+
+test("every campaign sector builds without throwing", () => {
+  const n = getLevelCount();
+  assert.ok(n >= 7, "campaign has at least 7 sectors");
+  for (let i = 0; i < n; i++) {
+    assert.doesNotThrow(() => buildLevel(i), `buildLevel(${i})`);
+    assert.ok(level.platforms.length > 0, `sector ${i} has platforms`);
+    assert.ok(level.exit.w > 0 && level.exit.h > 0, `sector ${i} has an exit`);
+  }
+});
+
+test("boss placement: sentinel on Ascender, rexBoss only on the finale", () => {
+  const n = getLevelCount();
+  const finale = n - 1;
+
+  for (let i = 0; i < n; i++) {
+    buildLevel(i);
+    const types = level.enemies.map((e) => e.type);
+    const hasSentinel = types.includes("towerSentinel");
+    const hasRexBoss = types.includes("rexBoss");
+
+    if (i === 1) {
+      assert.equal(hasSentinel, true, "Ascender hosts Tower Sentinel");
+      assert.equal(getLivingBoss()?.type, "towerSentinel");
+      assert.equal(isExitLocked(), true);
+    } else {
+      assert.equal(hasSentinel, false, `sector ${i} has no Tower Sentinel`);
+    }
+
+    if (i === finale) {
+      assert.equal(hasRexBoss, true, "finale hosts Cyber-Rex boss");
+      assert.equal(getLivingBoss()?.type, "rexBoss");
+      assert.equal(isExitLocked(), true);
+    } else {
+      assert.equal(hasRexBoss, false, `sector ${i} has no rexBoss`);
+    }
+  }
+
+  buildLevel(0);
+  assert.equal(isExitLocked(), false, "Grid Sprint exit is unlocked");
+  assert.equal(getLivingBoss(), null);
+});

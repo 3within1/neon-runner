@@ -139,3 +139,33 @@ test("formatRunBreakdown renders the expected summary", () => {
   assert.match(line, /TIME 1:15/);
   assert.match(line, /DEATHS 1 · COMBO 4 · LOCKDOWN/);
 });
+
+test("compareEntries treats non-positive duration as worse than a timed run", () => {
+  const timed = { score: 300, outcome: "won", sector: 4, durationSec: 90, at: "2026-01-01T00:00:00.000Z" };
+  const zero = { ...timed, durationSec: 0 };
+  const negative = { ...timed, durationSec: -5 };
+  assert.ok(compareEntries(timed, zero) < 0);
+  assert.ok(compareEntries(timed, negative) < 0);
+});
+
+test("compareEntries breaks remaining ties with earlier timestamp", () => {
+  const earlier = { score: 100, outcome: "won", sector: 3, durationSec: 60, at: "2026-01-01T00:00:00.000Z" };
+  const later = { ...earlier, at: "2026-06-01T00:00:00.000Z" };
+  assert.ok(compareEntries(earlier, later) < 0, "earlier ISO timestamp ranks first");
+  assert.ok(compareEntries(later, earlier) > 0);
+});
+
+test("formatRunBreakdown labels normal and time-trial modes", () => {
+  const base = {
+    score: 250,
+    coins: 10,
+    stomps: 5,
+    sectorIndex: 0,
+    sectorTotal: 7,
+    durationSec: 125,
+    deaths: 1,
+    maxCombo: 3,
+  };
+  assert.match(formatRunBreakdown({ ...base, mode: "normal" }), /RUN$/);
+  assert.match(formatRunBreakdown({ ...base, mode: "timeAttack" }), /TRIAL$/);
+});

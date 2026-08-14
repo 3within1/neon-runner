@@ -6,8 +6,12 @@ import {
   getActiveSkin,
   getBestClearTime,
   getMeta,
+  getUnlockedSector,
+  markCleared,
   recordClearTime,
   recordSectorTime,
+  setSkin,
+  unlockSector,
 } from "../src/meta.js";
 
 // meta.js falls back to in-memory defaults when localStorage is unavailable
@@ -50,4 +54,37 @@ test("getActiveSkin returns a valid skin definition", () => {
   const skin = getActiveSkin();
   assert.ok(skin && typeof skin.id === "string", "has an id");
   assert.ok(typeof skin.accent === "string", "has an accent color");
+});
+
+test("unlockSector starts at zero in Node in-memory meta", () => {
+  assert.equal(getUnlockedSector(), 0);
+});
+
+test("unlockSector advances and never decreases the unlocked index", () => {
+  assert.equal(unlockSector(3), 3);
+  assert.equal(getUnlockedSector(), 3);
+  assert.equal(unlockSector(1), 3, "lower index does not roll back progress");
+});
+
+test("unlockSector clamps negative and non-integer values", () => {
+  assert.equal(unlockSector(-2.7), 3, "negative values floor to zero and do not decrease");
+  assert.equal(getUnlockedSector(), 3);
+});
+
+test("markCleared unlocks ember; lockdown clear also unlocks lockdown skin", () => {
+  assert.equal(getMeta().unlockedSkins.includes("ember"), false);
+  markCleared(false);
+  assert.equal(getMeta().unlockedSkins.includes("ember"), true);
+  assert.equal(getMeta().unlockedSkins.includes("lockdown"), false);
+  assert.equal(getMeta().hasCleared, true);
+
+  markCleared(true);
+  assert.equal(getMeta().lockdownCleared, true);
+  assert.equal(getMeta().unlockedSkins.includes("lockdown"), true);
+});
+
+test("setSkin refuses skins that are still locked", () => {
+  const before = getMeta().skin;
+  const lockedId = "not-a-real-skin";
+  assert.equal(setSkin(lockedId), before, "unknown/locked skin leaves selection unchanged");
 });

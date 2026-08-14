@@ -888,6 +888,64 @@ export function solidPlatforms() {
   return level.platforms.filter((p) => !p.fallen);
 }
 
+/**
+ * Arm a collapse platform when the player lands on it (idempotent while armed).
+ * @param {{ kind?: string, fallen?: boolean, collapseTimer?: number }} p
+ * @returns {boolean} true if this platform is a live collapse tile
+ */
+export function armCollapsePlatform(p) {
+  if (p.kind !== "collapse" || p.fallen) return false;
+  if (p.collapseTimer <= 0) p.collapseTimer = 0.45;
+  return true;
+}
+
+/**
+ * Advance one collapse platform's fall / respawn timers.
+ * @param {{
+ *   kind?: string,
+ *   fallen?: boolean,
+ *   collapseTimer?: number,
+ *   respawnTimer?: number,
+ *   shake?: number,
+ * }} p
+ * @param {number} dt
+ */
+export function tickCollapsePlatform(p, dt) {
+  if (p.kind !== "collapse") return;
+  if (p.fallen) {
+    p.respawnTimer -= dt;
+    if (p.respawnTimer <= 0) {
+      p.fallen = false;
+      p.collapseTimer = 0;
+      p.shake = 0;
+    }
+    return;
+  }
+  if (p.collapseTimer > 0) {
+    p.collapseTimer -= dt;
+    p.shake = 1;
+    if (p.collapseTimer <= 0) {
+      p.fallen = true;
+      p.respawnTimer = 2.4;
+      p.shake = 0;
+    }
+  } else {
+    p.shake = 0;
+  }
+}
+
+/**
+ * Laser duty-cycle used by hazard updates (on for the first 45% of each period).
+ * @param {number} nowSec
+ * @param {number} phase
+ * @param {number} [period]
+ */
+export function isLaserHazardOn(nowSec, phase, period = 1.2) {
+  const p = period || 1.2;
+  const t = (nowSec + phase * p) % p;
+  return t < p * 0.45;
+}
+
 function assertExitGrounded() {
   const exit = level.exit;
   const feetY = exit.y + exit.h;
