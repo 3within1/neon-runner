@@ -1,5 +1,5 @@
 /** Keep in sync with package.json "version" */
-export const APP_VERSION = "2.0.3";
+export const APP_VERSION = "2.0.5";
 
 export const LOGICAL_W = 960;
 export const LOGICAL_H = 540;
@@ -23,9 +23,9 @@ export const JUMP_CUT_FACTOR = 0.65;
 export const JUMP_CUT_THRESHOLD = -280;
 export const STOMP_SLACK = 8;
 
-export const DASH_SPEED = 620;
-export const DASH_DURATION = 0.16;
-export const DASH_COOLDOWN = 0.55;
+export const DASH_SPEED = 900;
+export const DASH_DURATION = 0.18;
+export const DASH_COOLDOWN = 0.45;
 export const COMBO_WINDOW = 1.25;
 export const COMBO_BONUS_EVERY = 3;
 export const COMBO_BONUS_DATA = 5;

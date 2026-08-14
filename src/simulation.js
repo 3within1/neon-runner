@@ -322,21 +322,25 @@ export function updatePlayer(dt) {
     input.dashPressed = false;
   } else {
     tryDash();
-    const accel = player.onGround ? 3200 : 2200;
-    const maxSpeed = 280;
-    const friction = player.onGround ? 2400 : 400;
-    if (input.left) {
-      player.vx -= accel * dt;
-      player.facing = -1;
-    } else if (input.right) {
-      player.vx += accel * dt;
-      player.facing = 1;
-    } else {
-      const s = Math.sign(player.vx);
-      player.vx -= s * friction * dt;
-      if (Math.sign(player.vx) !== s) player.vx = 0;
+    // A dash started this frame: keep its full velocity (don't run the normal
+    // ground-movement accel/friction, which would clamp vx down to maxSpeed).
+    if (player.dashTimer <= 0) {
+      const accel = player.onGround ? 3200 : 2200;
+      const maxSpeed = 280;
+      const friction = player.onGround ? 2400 : 400;
+      if (input.left) {
+        player.vx -= accel * dt;
+        player.facing = -1;
+      } else if (input.right) {
+        player.vx += accel * dt;
+        player.facing = 1;
+      } else {
+        const s = Math.sign(player.vx);
+        player.vx -= s * friction * dt;
+        if (Math.sign(player.vx) !== s) player.vx = 0;
+      }
+      player.vx = Math.max(-maxSpeed, Math.min(maxSpeed, player.vx));
     }
-    player.vx = Math.max(-maxSpeed, Math.min(maxSpeed, player.vx));
   }
 
   const wasGrounded = player.onGround;
