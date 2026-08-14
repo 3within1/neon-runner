@@ -223,11 +223,15 @@ export function setPendingMode(mode, sector = 0, practice = false) {
 }
 
 /**
- * Boot helper for recordings / QA: Needle Path, parked in the first turret's lane.
- * Open with `?demo=turret`.
+ * Boot helper for recordings / QA: Needle Path in LOCKDOWN, parked in the first turret's lane.
+ * Open with `?demo=turret`. Bypasses the Lockdown unlock so the guns always spawn.
  */
 export function demoTurrets() {
-  startGame("timeAttack", 2);
+  resetRun(true, { mode: "lockdown", sector: 2 });
+  setState("playing");
+  setOverlay(false, "NEON RUNNER", "", "JACK IN");
+  setTouchVisible(true);
+  cueGameplayAudio("start");
   player.x = 10.5 * TILE;
   player.y = 10 * TILE - player.h - 0.5;
   player.vx = 0;
@@ -241,7 +245,7 @@ export function demoTurrets() {
   }
   camera.x = Math.max(0, Math.min(level.width - W, player.x - W * 0.25));
   camera.y = Math.max(0, Math.min(level.height - 540, player.y - 220));
-  announce("TURRET DEMO — amber guns track and fire when you share their lane.");
+  announce("TURRET DEMO — LOCKDOWN guns. Amber turrets fire when you share their lane.");
 }
 
 function syncReplayPose(t) {

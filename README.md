@@ -29,7 +29,7 @@ App version is `package.json` / `APP_VERSION` in `src/constants.js` (keep them m
 ## Modes
 
 - **JACK IN** — full campaign (pick an unlocked start sector on the title screen)
-- **LOCKDOWN** — NG+ (faster enemies, 2 lives, 1.5× DATA); unlocks after one full clear
+- **LOCKDOWN** — NG+ (faster enemies, 2 lives, 1.5× DATA, **turrets**); unlocks after one full clear
 - **TIME TRIAL** — single-sector race; best times saved locally
 - **REX PRACTICE** — Cyber-Rex arena drill; unlocks after reaching REX CORE
 - **Skins** — GRID default; SIGNAL at 500 DATA; EMBER on clear; LOCKDOWN skin on Lockdown clear
@@ -42,15 +42,16 @@ Served over `http://127.0.0.1` / HTTPS, the app registers a service worker (`sw.
 
 1. **2084 GRID SPRINT** — classic gaps, optional high route, collapse pads  
 2. **2091 ASCENDER** — vertical climb; **wall cling / jump** online; **Tower Sentinel** mini-boss on a continuous summit arena  
-3. **2100 NEEDLE PATH** — thin platforms; **air jump** online; floor **turrets**  
-4. **2112 SWARM GRID** — dense swarm packs; **turrets** cover lanes  
+3. **2100 NEEDLE PATH** — thin platforms; **air jump** online  
+4. **2112 SWARM GRID** — dense swarm packs  
 5. **2118 OVERCLOCK SPAN** — armored climb, lasers + electric floors  
-6. **2125 BLACKOUT RUN** — finale gauntlet; **dash** online; climb to the vault door; **turrets**  
+6. **2125 BLACKOUT RUN** — finale gauntlet; **dash** online; climb to the vault door  
 7. **2126 REX CORE** — Cyber-Rex boss arena with armor-break / slam / overclock phases (exit locked until it falls)
 
 ## Features
 
-- Checkpoints, collapsing platforms, electric floors, beat-synced laser gates, tracking turrets
+- Checkpoints, collapsing platforms, electric floors, beat-synced laser gates
+- Tracking turrets in **LOCKDOWN** only (Needle Path, Swarm Grid, Blackout Run)
 - Wall cling / wall jump from Ascender onward
 - Combo stomps, hit-stop juice, death replay, screen crack on crash
 - HUD run timer + best full-clear time on the title screen

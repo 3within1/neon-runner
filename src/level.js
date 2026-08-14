@@ -9,7 +9,7 @@ import {
   TILE,
 } from "./constants.js";
 import { rect } from "./physics.js";
-import { enemySpeedMult, level, levelIndex } from "./state.js";
+import { enemySpeedMult, level, levelIndex, runMode } from "./state.js";
 
 /**
  * Declarative level defs (tile units).
@@ -18,7 +18,7 @@ import { enemySpeedMult, level, levelIndex } from "./state.js";
  * checkpoints: [tx, ty]
  * coins: [tx, ty]
  * enemies: [tx, ty, minA, maxA] or [tx, ty, minA, maxA, type]
- *   Turrets ignore patrol span (placed at tx, ty).
+ *   Turrets ignore patrol span (placed at tx, ty) and spawn only in LOCKDOWN.
  */
 
 /** Per-type stats used by spawnEnemy / simulation / render. */
@@ -761,6 +761,8 @@ function spawnEnemy(tx, ty, minA, maxA, typeName = "drone") {
   }
 
   const isTurret = !!def.turret;
+  if (isTurret && runMode !== "lockdown") return;
+
   const min = minA * TILE;
   const max = maxA * TILE;
   const size = def.axis === "y" ? def.h : def.w;

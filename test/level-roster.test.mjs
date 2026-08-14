@@ -15,7 +15,7 @@ import {
   getLivingBoss,
   isExitLocked,
 } from "../src/level.js";
-import { level } from "../src/state.js";
+import { configureRunMode, level } from "../src/state.js";
 
 test("ENEMY_TYPES score fields stay aligned with SCORE_* constants", () => {
   assert.equal(ENEMY_TYPES.drone.score, SCORE_STOMP);
@@ -71,15 +71,32 @@ test("boss placement: sentinel on Ascender, rexBoss only on the finale", () => {
   assert.equal(getLivingBoss(), null);
 });
 
-test("turrets sit on Needle Path, Swarm Grid, and Blackout Run", () => {
+test("turrets spawn on Needle Path, Swarm Grid, and Blackout Run in LOCKDOWN only", () => {
   const expected = { 2: 2, 3: 1, 5: 1 };
+
+  configureRunMode("normal");
+  for (const index of Object.keys(expected)) {
+    buildLevel(Number(index));
+    const turrets = level.enemies.filter((e) => e.turret || e.type === "turret");
+    assert.equal(turrets.length, 0, `sector ${index} has no turrets on a normal run`);
+  }
+
+  configureRunMode("lockdown");
   for (const [index, count] of Object.entries(expected)) {
     buildLevel(Number(index));
     const turrets = level.enemies.filter((e) => e.turret || e.type === "turret");
-    assert.equal(turrets.length, count, `sector ${index} turret count`);
+    assert.equal(turrets.length, count, `sector ${index} turret count in lockdown`);
     for (const t of turrets) {
       assert.equal(t.vx, 0);
       assert.equal(t.hp, 2);
     }
   }
+
+  configureRunMode("timeAttack", 2);
+  buildLevel(2);
+  assert.equal(
+    level.enemies.filter((e) => e.turret || e.type === "turret").length,
+    0,
+    "time trial does not spawn turrets"
+  );
 });
