@@ -26,6 +26,32 @@ export function segmentHitsRect(x0, y0, x1, y1, w, h, r) {
   return false;
 }
 
+/**
+ * Direction of a wall the box is holding into, or 0.
+ * Probe includes a 1px inbound slop so flush collision (x+w === wall.x) still counts
+ * if float rounding leaves a hairline gap.
+ * @param {{ x: number, y: number, w: number, h: number }} box
+ * @param {{ x: number, y: number, w: number, h: number, fallen?: boolean }[]} platforms
+ * @param {boolean} holdLeft
+ * @param {boolean} holdRight
+ * @param {number} [probe]
+ * @returns {-1 | 0 | 1}
+ */
+export function wallClingDir(box, platforms, holdLeft, holdRight, probe = 8) {
+  for (const p of platforms) {
+    if (p.fallen) continue;
+    const overlapY = box.y + box.h > p.y + 4 && box.y < p.y + p.h - 4;
+    if (!overlapY) continue;
+    if (holdRight && box.x + box.w >= p.x - 1 && box.x + box.w <= p.x + probe) {
+      return 1;
+    }
+    if (holdLeft && box.x <= p.x + p.w + 1 && box.x >= p.x + p.w - probe) {
+      return -1;
+    }
+  }
+  return 0;
+}
+
 export function resolveAxis(entity, platforms, axis, prev) {
   for (const p of platforms) {
     if (!aabb(entity, p)) continue;

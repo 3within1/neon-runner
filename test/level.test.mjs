@@ -2,14 +2,21 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { TILE } from "../src/constants.js";
 import { buildLevel, enemyBody, getLivingBoss } from "../src/level.js";
+import { level } from "../src/state.js";
 
 test("Ascender sentinel patrols the summit arena", () => {
   buildLevel(1);
   const boss = getLivingBoss();
   assert.ok(boss, "living boss exists");
   assert.equal(boss.type, "towerSentinel");
-  assert.ok(boss.minX >= 48 * TILE, "patrol min stays on summit");
-  assert.ok(boss.maxX <= 62 * TILE, "patrol max stays on summit");
+  assert.ok(boss.minX >= 14 * TILE, "patrol min stays on summit");
+  assert.ok(boss.maxX <= 50 * TILE, "patrol max stays on summit");
+});
+
+test("Ascender has tall cling shafts for wall jump", () => {
+  buildLevel(1);
+  const shafts = level.platforms.filter((p) => p.h >= 8 * TILE && p.w <= TILE);
+  assert.ok(shafts.length >= 2, "expected mirrored cling shafts");
 });
 
 test("enemyBody uses raw bounds for grounded enemies", () => {

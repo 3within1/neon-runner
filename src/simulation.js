@@ -36,7 +36,7 @@ import {
   solidPlatforms,
   tickCollapsePlatform,
 } from "./level.js";
-import { aabb, resolveAxis, segmentHitsRect } from "./physics.js";
+import { aabb, resolveAxis, segmentHitsRect, wallClingDir } from "./physics.js";
 import { sfx, stopMusic } from "./audio.js";
 import {
   addRunCoin,
@@ -331,28 +331,7 @@ function detectWallCling(dt) {
     player.wallCling = 0;
     return;
   }
-  const probe = 3;
-  let dir = 0;
-  for (const p of solidPlatforms()) {
-    const overlapY = player.y + player.h > p.y + 4 && player.y < p.y + p.h - 4;
-    if (!overlapY) continue;
-    if (
-      player.x + player.w >= p.x &&
-      player.x + player.w <= p.x + probe &&
-      input.right
-    ) {
-      dir = 1;
-      break;
-    }
-    if (
-      player.x <= p.x + p.w &&
-      player.x >= p.x + p.w - probe &&
-      input.left
-    ) {
-      dir = -1;
-      break;
-    }
-  }
+  const dir = wallClingDir(player, solidPlatforms(), input.left, input.right);
   if (dir !== 0) {
     player.wallDir = dir;
     player.wallCling = WALL_CLING_GRACE;

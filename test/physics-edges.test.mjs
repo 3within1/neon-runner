@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { aabb, rect, resolveAxis, segmentHitsRect } from "../src/physics.js";
+import { aabb, rect, resolveAxis, segmentHitsRect, wallClingDir } from "../src/physics.js";
 
 test("resolveAxis bumps a rising entity off a ceiling", () => {
   const ceiling = rect(0, 0, 100, 20);
@@ -25,4 +25,13 @@ test("segmentHitsRect returns false for a zero-length miss beside the target", (
   const target = rect(100, 0, 10, 10);
   assert.equal(segmentHitsRect(0, 0, 0, 0, 8, 8, target), false);
   assert.equal(aabb(rect(0, 0, 8, 8), target), false);
+});
+
+test("wallClingDir detects a flush right-wall hold and ignores a miss", () => {
+  const wall = rect(100, 0, 20, 200);
+  const flush = { x: 72, y: 40, w: 28, h: 40 }; // 72+28 === 100
+  assert.equal(wallClingDir(flush, [wall], false, true), 1);
+  assert.equal(wallClingDir(flush, [wall], true, false), 0, "holding the wrong way");
+  const far = { x: 10, y: 40, w: 28, h: 40 };
+  assert.equal(wallClingDir(far, [wall], false, true), 0);
 });
