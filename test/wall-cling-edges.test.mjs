@@ -25,7 +25,7 @@ test("wallClingDir ignores fallen platforms and weak Y overlap", () => {
   const flush = { x: 72, y: 40, w: 28, h: 40 };
   assert.equal(wallClingDir(flush, [{ ...wall, fallen: true }], false, true), 0);
 
-  // Barely grazing the top of the wall (within the ±4px margin exclusion).
-  const skim = { x: 72, y: wall.y - 30, w: 28, h: 40 };
+  // Barely above the wall — bottom never clears the +4px Y margin.
+  const skim = { x: 72, y: -37, w: 28, h: 40 }; // bottom at y=3 ≤ wall.y+4
   assert.equal(wallClingDir(skim, [wall], false, true), 0);
 });
