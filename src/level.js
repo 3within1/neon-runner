@@ -992,6 +992,35 @@ export function isLaserHazardOn(nowSec, phase, period = 1.2) {
   return t < p * 0.45;
 }
 
+/**
+ * LOCKDOWN turret fire gate: cooldown ready, player in range, and roughly level.
+ * @param {number} fireCd
+ * @param {number} dist
+ * @param {number} dy
+ * @param {number} [range]
+ * @param {number} [maxAbsDy]
+ */
+export function turretCanFire(fireCd, dist, dy, range = TILE * 14, maxAbsDy = TILE * 3.5) {
+  return fireCd <= 0 && dist < range && Math.abs(dy) < maxAbsDy;
+}
+
+/**
+ * Horizontal bolt spawned by a tracking turret.
+ * @param {{ x: number, y: number, w: number, h: number }} e
+ * @param {-1 | 1} dir
+ */
+export function makeTurretBolt(e, dir) {
+  return {
+    x: e.x + e.w * 0.5 - 10 + dir * 14,
+    y: e.y + e.h * 0.3,
+    w: 22,
+    h: 12,
+    vx: dir * 260,
+    vy: 0,
+    life: 2.6,
+  };
+}
+
 function assertExitGrounded() {
   const exit = level.exit;
   const feetY = exit.y + exit.h;

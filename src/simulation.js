@@ -18,9 +18,6 @@ import {
   STOMP_SLACK,
   TILE,
   WALL_CLING_GRACE,
-  WALL_JUMP_VX,
-  WALL_JUMP_VY,
-  WALL_SLIDE_SPEED,
 } from "./constants.js";
 import { W, H } from "./dom.js";
 import { input } from "./input.js";
@@ -33,10 +30,21 @@ import {
   getLivingBoss,
   isExitLocked,
   isLaserHazardOn,
+  makeTurretBolt,
   solidPlatforms,
   tickCollapsePlatform,
+  turretCanFire,
 } from "./level.js";
-import { aabb, resolveAxis, segmentHitsRect, wallClingDir } from "./physics.js";
+import {
+  aabb,
+  capWallSlideFall,
+  integrateRunVelocity,
+  resolveAxis,
+  segmentHitsRect,
+  shouldApplyRunClamp,
+  wallClingDir,
+  wallJumpVelocity,
+} from "./physics.js";
 import { sfx, stopMusic } from "./audio.js";
 import {
   addRunCoin,
@@ -343,9 +351,10 @@ function detectWallCling(dt) {
 
 function tryWallJump() {
   if (player.wallCling <= 0 || player.wallDir === 0 || player.onGround) return false;
-  player.vy = WALL_JUMP_VY;
-  player.vx = -player.wallDir * WALL_JUMP_VX;
-  player.facing = -player.wallDir;
+  const impulse = wallJumpVelocity(player.wallDir);
+  player.vy = impulse.vy;
+  player.vx = impulse.vx;
+  player.facing = impulse.facing;
   player.wallCling = 0;
   player.wallDir = 0;
   player.jumpBuffer = 0;
@@ -371,22 +380,15 @@ export function updatePlayer(dt) {
     tryDash();
     // A dash started this frame: keep its full velocity (don't run the normal
     // ground-movement accel/friction, which would clamp vx down to maxSpeed).
-    if (player.dashTimer <= 0) {
-      const accel = player.onGround ? 3200 : 2200;
-      const maxSpeed = 280;
-      const friction = player.onGround ? 2400 : 400;
-      if (input.left) {
-        player.vx -= accel * dt;
-        player.facing = -1;
-      } else if (input.right) {
-        player.vx += accel * dt;
-        player.facing = 1;
-      } else {
-        const s = Math.sign(player.vx);
-        player.vx -= s * friction * dt;
-        if (Math.sign(player.vx) !== s) player.vx = 0;
-      }
-      player.vx = Math.max(-maxSpeed, Math.min(maxSpeed, player.vx));
+    if (shouldApplyRunClamp(player.dashTimer)) {
+      if (input.left) player.facing = -1;
+      else if (input.right) player.facing = 1;
+      player.vx = integrateRunVelocity(player.vx, {
+        left: input.left,
+        right: input.right,
+        onGround: player.onGround,
+        dt,
+      });
     }
   }
 
@@ -431,9 +433,7 @@ export function updatePlayer(dt) {
 
   if (player.dashTimer <= 0) {
     player.vy = Math.min(MAX_FALL, player.vy + GRAVITY * dt);
-    if (player.wallCling > 0 && player.wallDir !== 0 && player.vy > 0) {
-      player.vy = Math.min(player.vy, WALL_SLIDE_SPEED);
-    }
+    player.vy = capWallSlideFall(player.vy, player.wallCling, player.wallDir);
   }
 
   player.prevX = player.x;
@@ -667,17 +667,9 @@ function updateTurret(e, dt) {
   const dx = player.x + player.w * 0.5 - (e.x + e.w * 0.5);
   const dy = player.y + player.h * 0.5 - (e.y + e.h * 0.35);
   const dist = Math.hypot(dx, dy);
-  if (dist < TILE * 14 && e.fireCd <= 0 && Math.abs(dy) < TILE * 3.5) {
+  if (turretCanFire(e.fireCd, dist, dy)) {
     const dir = Math.sign(dx) || 1;
-    level.projectiles.push({
-      x: e.x + e.w * 0.5 - 10 + dir * 14,
-      y: e.y + e.h * 0.3,
-      w: 22,
-      h: 12,
-      vx: dir * 260,
-      vy: 0,
-      life: 2.6,
-    });
+    level.projectiles.push(makeTurretBolt(e, dir));
     e.fireCd = 0.85;
     sfx.turret();
   }
