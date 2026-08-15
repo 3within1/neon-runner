@@ -1,7 +1,7 @@
 {
   "name": "neon-runner",
   "private": true,
-  "version": "2.0.9",
+  "version": "2.0.11",
   "description": "Cyberpunk browser platformer",
   "type": "module",
   "scripts": {

@@ -1,6 +1,5 @@
 import {
   COMBO_WINDOW,
-  COYOTE_TIME,
   DASH_COOLDOWN,
   DASH_DURATION,
   DASH_SPEED,
@@ -8,16 +7,13 @@ import {
   GRAVITY,
   INVULN_HIT,
   INVULN_STOMP,
-  JUMP_BUFFER,
   JUMP_CUT_FACTOR,
   JUMP_CUT_THRESHOLD,
   JUMP_VELOCITY,
   MAX_FALL,
   SCORE_PACK,
   STOMP_BOUNCE,
-  STOMP_SLACK,
   TILE,
-  WALL_CLING_GRACE,
   WALL_JUMP_VX,
   WALL_JUMP_VY,
   WALL_SLIDE_SPEED,
@@ -26,14 +22,23 @@ import { W, H } from "./dom.js";
 import { input } from "./input.js";
 import {
   armCollapsePlatform,
+  advanceProjectile,
+  bossPhaseFromHp,
   buildLevel,
+  electricHazardPulse,
   enemyBody,
+  floorYUnderEntity,
   getLevelCount,
   getLevelDef,
   getLivingBoss,
   isExitLocked,
   isLaserHazardOn,
+  isStompHit,
+  minibossPhaseFromHp,
+  projectileCanHurtPlayer,
+  projectileExpired,
   solidPlatforms,
+  stepPatrol1D,
   tickCollapsePlatform,
 } from "./level.js";
 import { aabb, resolveAxis, segmentHitsRect, wallClingDir } from "./physics.js";
@@ -82,6 +87,10 @@ import {
   startingLivesForMode,
   state,
   tickCombo,
+  tickCoyote,
+  tickInvuln,
+  tickJumpBuffer,
+  tickWallClingGrace,
 } from "./state.js";
 import {
   ABILITY_STORY,
@@ -332,13 +341,9 @@ function detectWallCling(dt) {
     return;
   }
   const dir = wallClingDir(player, solidPlatforms(), input.left, input.right);
-  if (dir !== 0) {
-    player.wallDir = dir;
-    player.wallCling = WALL_CLING_GRACE;
-  } else {
-    player.wallCling = Math.max(0, player.wallCling - dt);
-    if (player.wallCling <= 0) player.wallDir = 0;
-  }
+  const next = tickWallClingGrace(player.wallCling, player.wallDir, dir, dt);
+  player.wallDir = next.wallDir;
+  player.wallCling = next.wallCling;
 }
 
 function tryWallJump() {
@@ -392,15 +397,9 @@ export function updatePlayer(dt) {
 
   const wasGrounded = player.onGround;
 
-  if (player.onGround) {
-    player.coyote = COYOTE_TIME;
-    player.airJumps = player.maxAirJumps;
-  } else {
-    player.coyote = Math.max(0, player.coyote - dt);
-  }
-
-  if (input.jumpPressed) player.jumpBuffer = JUMP_BUFFER;
-  else player.jumpBuffer = Math.max(0, player.jumpBuffer - dt);
+  if (player.onGround) player.airJumps = player.maxAirJumps;
+  player.coyote = tickCoyote(player.coyote, player.onGround, dt);
+  player.jumpBuffer = tickJumpBuffer(player.jumpBuffer, input.jumpPressed, dt);
   input.jumpPressed = false;
 
   if (player.dashTimer <= 0 && player.jumpBuffer > 0) {
@@ -487,30 +486,17 @@ export function updatePlayer(dt) {
     player.frame = (player.frame + 1) % 4;
   }
 
-  if (player.invuln > 0) player.invuln = Math.max(0, player.invuln - dt);
+  if (player.invuln > 0) player.invuln = tickInvuln(player.invuln, dt);
   pushReplaySample();
 }
 
 function bossPhase(e) {
-  const ratio = e.hp / e.maxHp;
-  if (ratio > 0.62) return 1;
-  if (ratio > 0.28) return 2;
-  return 3;
+  return bossPhaseFromHp(e.hp, e.maxHp);
 }
 
 /** Top Y of a solid platform under a world X near the enemy's feet, if any. */
 function floorYUnder(e, atX) {
-  const feetY = e.y + e.h;
-  let best = null;
-  for (const p of level.platforms) {
-    if (p.fallen) continue;
-    if (atX < p.x || atX > p.x + p.w) continue;
-    // Prefer the platform the feet are already on / just above.
-    if (p.y < e.y - TILE) continue;
-    if (p.y > feetY + TILE * 0.5) continue;
-    if (best === null || p.y < best) best = p.y;
-  }
-  return best;
+  return floorYUnderEntity(level.platforms, e, atX);
 }
 
 function hasFloorSupport(e, atX) {
@@ -545,7 +531,7 @@ function updateBossChase(e, dt) {
   const dist = Math.abs(dx);
   const inArena =
     player.x + player.w > e.minX - TILE * 4 && player.x < e.maxX + TILE * 4;
-  const phase = e.miniboss ? (e.hp <= 2 ? 3 : e.hp <= 3 ? 2 : 1) : bossPhase(e);
+  const phase = e.miniboss ? minibossPhaseFromHp(e.hp) : bossPhase(e);
   const enraged = phase >= 3;
   const chaseSpeed = e.baseSpeed * (phase === 1 ? 1 : phase === 2 ? 1.2 : 1.4);
   const chargeMult = enraged ? 3.5 : phase === 2 ? 3.1 : 2.85;
@@ -688,16 +674,17 @@ export function updateProjectiles(dt) {
   if (!level.projectiles) level.projectiles = [];
   for (let i = level.projectiles.length - 1; i >= 0; i--) {
     const p = level.projectiles[i];
-    p.life -= dt;
-    p.x += p.vx * dt;
-    p.y += p.vy * dt;
-    if (p.life <= 0) {
+    const next = advanceProjectile(p, dt);
+    p.life = next.life;
+    p.x = next.x;
+    p.y = next.y;
+    if (projectileExpired(p.life)) {
       level.projectiles.splice(i, 1);
       continue;
     }
     if (aabb(player, p)) {
       // While invulnerable, let bolts pass through so they stay visible.
-      if (player.invuln > 0) continue;
+      if (!projectileCanHurtPlayer(player.invuln)) continue;
       level.projectiles.splice(i, 1);
       if (!hitPlayer()) continue;
       return;
@@ -718,23 +705,13 @@ export function updateEnemies(dt) {
     } else if (e.chase) {
       updateBossChase(e, dt);
     } else if (e.axis === "y") {
-      e.y += e.vy * dt;
-      if (e.y < e.minY) {
-        e.y = e.minY;
-        e.vy = Math.abs(e.speed);
-      } else if (e.y + e.h > e.maxY) {
-        e.y = e.maxY - e.h;
-        e.vy = -Math.abs(e.speed);
-      }
+      const stepped = stepPatrol1D(e.y, e.h, e.vy, e.minY, e.maxY, e.speed, dt);
+      e.y = stepped.pos;
+      e.vy = stepped.vel;
     } else {
-      e.x += e.vx * dt;
-      if (e.x < e.minX) {
-        e.x = e.minX;
-        e.vx = Math.abs(e.speed);
-      } else if (e.x + e.w > e.maxX) {
-        e.x = e.maxX - e.w;
-        e.vx = -Math.abs(e.speed);
-      }
+      const stepped = stepPatrol1D(e.x, e.w, e.vx, e.minX, e.maxX, e.speed, dt);
+      e.x = stepped.pos;
+      e.vx = stepped.vel;
       if (e.grounded) constrainGroundedEnemy(e);
     }
 
@@ -747,10 +724,12 @@ export function updateEnemies(dt) {
     if (!aabb(player, body)) continue;
 
     const prevBottom = player.prevY + player.h;
-    const stomping =
-      player.vy > 0 &&
-      prevBottom <= body.y + STOMP_SLACK &&
-      player.y + player.h >= body.y;
+    const stomping = isStompHit(
+      player.vy,
+      prevBottom,
+      body.y,
+      player.y + player.h
+    );
 
     if (stomping) {
       player.vy = STOMP_BOUNCE;
@@ -819,7 +798,7 @@ export function updateHazards(dt) {
       h.on = isLaserHazardOn(performance.now() / 1000, h.phase, h.period || 1.2);
     } else if (h.kind === "electric") {
       h.on = true;
-      h.pulse = 0.5 + 0.5 * Math.sin((performance.now() / 1000) * (Math.PI * 2) / beat);
+      h.pulse = electricHazardPulse(performance.now() / 1000, beat);
     }
 
     if (h.kind === "laser" && !h.on) continue;

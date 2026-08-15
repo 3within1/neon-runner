@@ -1,7 +1,9 @@
 import {
   COMBO_BONUS_DATA,
   COMBO_BONUS_EVERY,
+  COYOTE_TIME,
   EXTRA_LIFE_EVERY,
+  JUMP_BUFFER,
   LOCKDOWN_SCORE_MULT,
   LOCKDOWN_SPEED_MULT,
   LOCKDOWN_START_LIVES,
@@ -13,6 +15,7 @@ import {
   UNLOCK_DASH_SECTOR,
   UNLOCK_DOUBLE_JUMP_SECTOR,
   UNLOCK_WALL_CLING_SECTOR,
+  WALL_CLING_GRACE,
 } from "./constants.js";
 import { getMeta } from "./meta.js";
 
@@ -359,4 +362,50 @@ export function noteFrameError(counts, err) {
   if (seen === 0) return { key, kind: "first", count };
   if (count % 300 === 0) return { key, kind: "repeat", count };
   return { key, kind: "silent", count };
+}
+
+/** Refill coyote on ground; otherwise decay toward zero. */
+export function tickCoyote(coyote, onGround, dt, refill = COYOTE_TIME) {
+  if (onGround) return refill;
+  return Math.max(0, coyote - dt);
+}
+
+/** Press refreshes the buffer; otherwise decay toward zero. */
+export function tickJumpBuffer(jumpBuffer, jumpPressed, dt, refill = JUMP_BUFFER) {
+  if (jumpPressed) return refill;
+  return Math.max(0, jumpBuffer - dt);
+}
+
+/**
+ * Decay invulnerability. Non-finite values (e.g. Infinity during death replay) stay put.
+ * @param {number} invuln
+ * @param {number} dt
+ */
+export function tickInvuln(invuln, dt) {
+  if (invuln <= 0) return 0;
+  if (!Number.isFinite(invuln)) return invuln;
+  return Math.max(0, invuln - dt);
+}
+
+/**
+ * Wall-cling grace FSM: contact refreshes grace; loss of contact decays then clears dir.
+ * @param {number} wallCling
+ * @param {-1 | 0 | 1} wallDir
+ * @param {-1 | 0 | 1} detectedDir
+ * @param {number} dt
+ * @param {number} [grace]
+ * @returns {{ wallDir: -1 | 0 | 1, wallCling: number }}
+ */
+export function tickWallClingGrace(
+  wallCling,
+  wallDir,
+  detectedDir,
+  dt,
+  grace = WALL_CLING_GRACE
+) {
+  if (detectedDir !== 0) {
+    return { wallDir: detectedDir, wallCling: grace };
+  }
+  const next = Math.max(0, wallCling - dt);
+  return { wallDir: next <= 0 ? 0 : wallDir, wallCling: next };
 }
