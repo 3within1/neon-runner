@@ -6,6 +6,7 @@ import {
   SCORE_REX_BOSS,
   SCORE_STOMP,
   SCORE_TURRET,
+  STOMP_SLACK,
   TILE,
 } from "./constants.js";
 import { rect } from "./physics.js";
@@ -992,6 +993,35 @@ export function isLaserHazardOn(nowSec, phase, period = 1.2) {
   return t < p * 0.45;
 }
 
+/**
+ * LOCKDOWN turret fire gate: cooldown ready, player in range, and roughly level.
+ * @param {number} fireCd
+ * @param {number} dist
+ * @param {number} dy
+ * @param {number} [range]
+ * @param {number} [maxAbsDy]
+ */
+export function turretCanFire(fireCd, dist, dy, range = TILE * 14, maxAbsDy = TILE * 3.5) {
+  return fireCd <= 0 && dist < range && Math.abs(dy) < maxAbsDy;
+}
+
+/**
+ * Horizontal bolt spawned by a tracking turret.
+ * @param {{ x: number, y: number, w: number, h: number }} e
+ * @param {-1 | 1} dir
+ */
+export function makeTurretBolt(e, dir) {
+  return {
+    x: e.x + e.w * 0.5 - 10 + dir * 14,
+    y: e.y + e.h * 0.3,
+    w: 22,
+    h: 12,
+    vx: dir * 260,
+    vy: 0,
+    life: 2.6,
+  };
+}
+
 function assertExitGrounded() {
   const exit = level.exit;
   const feetY = exit.y + exit.h;
@@ -1045,4 +1075,116 @@ export function buildLevel(index = levelIndex) {
   for (const e of def.enemies) spawnEnemy(...e);
   assertExitGrounded();
   assertGroundedPatrols();
+}
+
+/**
+ * 1D patrol step with hard bounce at [min, max] bounds (shared by X and Y drones).
+ * @param {number} pos
+ * @param {number} size
+ * @param {number} vel
+ * @param {number} min
+ * @param {number} max
+ * @param {number} speed
+ * @param {number} dt
+ * @returns {{ pos: number, vel: number }}
+ */
+export function stepPatrol1D(pos, size, vel, min, max, speed, dt) {
+  let nextPos = pos + vel * dt;
+  let nextVel = vel;
+  if (nextPos < min) {
+    nextPos = min;
+    nextVel = Math.abs(speed);
+  } else if (nextPos + size > max) {
+    nextPos = max - size;
+    nextVel = -Math.abs(speed);
+  }
+  return { pos: nextPos, vel: nextVel };
+}
+
+/**
+ * Cyber-Rex (and similar) phase from remaining HP ratio.
+ * @param {number} hp
+ * @param {number} maxHp
+ * @returns {1 | 2 | 3}
+ */
+export function bossPhaseFromHp(hp, maxHp) {
+  const ratio = hp / maxHp;
+  if (ratio > 0.62) return 1;
+  if (ratio > 0.28) return 2;
+  return 3;
+}
+
+/**
+ * Tower Sentinel phase thresholds (absolute HP, not ratio).
+ * @param {number} hp
+ * @returns {1 | 2 | 3}
+ */
+export function minibossPhaseFromHp(hp) {
+  if (hp <= 2) return 3;
+  if (hp <= 3) return 2;
+  return 1;
+}
+
+/**
+ * True when the player is stomping an enemy body from above.
+ * @param {number} vy
+ * @param {number} prevBottom
+ * @param {number} bodyY
+ * @param {number} bottom
+ * @param {number} [slack]
+ */
+export function isStompHit(vy, prevBottom, bodyY, bottom, slack = STOMP_SLACK) {
+  return vy > 0 && prevBottom <= bodyY + slack && bottom >= bodyY;
+}
+
+/**
+ * Top Y of a solid platform under a world X near an entity's feet, if any.
+ * @param {{ x: number, y: number, w: number, h: number, fallen?: boolean }[]} platforms
+ * @param {{ x: number, y: number, w: number, h: number }} e
+ * @param {number} atX
+ * @returns {number | null}
+ */
+export function floorYUnderEntity(platforms, e, atX) {
+  const feetY = e.y + e.h;
+  let best = null;
+  for (const p of platforms) {
+    if (p.fallen) continue;
+    if (atX < p.x || atX > p.x + p.w) continue;
+    if (p.y < e.y - TILE) continue;
+    if (p.y > feetY + TILE * 0.5) continue;
+    if (best === null || p.y < best) best = p.y;
+  }
+  return best;
+}
+
+/** Advance a bolt one frame (life + position). Does not mutate `p`. */
+export function advanceProjectile(p, dt) {
+  return {
+    ...p,
+    life: p.life - dt,
+    x: p.x + p.vx * dt,
+    y: p.y + p.vy * dt,
+  };
+}
+
+/** Bolts expire when life reaches zero. */
+export function projectileExpired(life) {
+  return life <= 0;
+}
+
+/**
+ * While invulnerable, bolts pass through so they stay visible.
+ * @param {number} invuln
+ */
+export function projectileCanHurtPlayer(invuln) {
+  return !(invuln > 0);
+}
+
+/**
+ * Electric hazard pulse amplitude for a sector beat length.
+ * @param {number} nowSec
+ * @param {number} beatSec
+ */
+export function electricHazardPulse(nowSec, beatSec) {
+  return 0.5 + 0.5 * Math.sin((nowSec * Math.PI * 2) / beatSec);
 }
