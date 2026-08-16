@@ -109,6 +109,7 @@ export const ENEMY_TYPES = {
     axis: "x",
     bobAmp: 0,
     bobSpeed: 0,
+    grounded: true,
     turret: true,
     fill: "#181028",
     stroke: COLORS.amber,

@@ -89,6 +89,16 @@ test("turrets spawn on Needle Path, Swarm Grid, and Blackout Run in LOCKDOWN onl
     for (const t of turrets) {
       assert.equal(t.vx, 0);
       assert.equal(t.hp, 2);
+      assert.equal(t.grounded, true);
+      const feetY = t.y + t.h;
+      const onPad = level.platforms.some(
+        (p) =>
+          !p.fallen &&
+          t.x + t.w * 0.5 >= p.x &&
+          t.x + t.w * 0.5 <= p.x + p.w &&
+          Math.abs(p.y - feetY) < 0.5
+      );
+      assert.equal(onPad, true, `turret at x=${t.x} sits on a pad (was floating 12px)`);
     }
   }
 
