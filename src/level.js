@@ -1189,3 +1189,123 @@ export function projectileCanHurtPlayer(invuln) {
 export function electricHazardPulse(nowSec, beatSec) {
   return 0.5 + 0.5 * Math.sin((nowSec * Math.PI * 2) / beatSec);
 }
+
+/**
+ * Chase / charge / slam tunables for boss phase 1–3.
+ * @param {1 | 2 | 3} phase
+ */
+export function bossChaseTunables(phase) {
+  const enraged = phase >= 3;
+  return {
+    chaseMult: phase === 1 ? 1 : phase === 2 ? 1.2 : 1.4,
+    chargeMult: enraged ? 3.5 : phase === 2 ? 3.1 : 2.85,
+    chargeDur: enraged ? 0.9 : 0.7,
+    chargeCd: enraged ? 0.85 : phase === 2 ? 1.1 : 1.35,
+    slamCooldown: enraged ? 1.1 : 1.6,
+    slamVy: enraged ? -780 : -620,
+  };
+}
+
+/**
+ * Cyber-Rex (not Tower Sentinel) leaps when close in phase 2+.
+ * @param {{ inArena: boolean, miniboss: boolean, phase: number, slamTimer: number, charging: number, dist: number }} opts
+ */
+export function shouldBossStartSlam({
+  inArena,
+  miniboss,
+  phase,
+  slamTimer,
+  charging,
+  dist,
+}) {
+  return (
+    inArena &&
+    !miniboss &&
+    phase >= 2 &&
+    slamTimer <= 0 &&
+    charging <= 0 &&
+    dist < 360
+  );
+}
+
+/**
+ * Start a ground charge while chasing inside the engagement band.
+ * Outer chase gate (`inArena && dist > 12`) stays in the caller.
+ * @param {number} dist
+ * @param {number} chargeCd
+ */
+export function shouldBossStartCharge(dist, chargeCd) {
+  return dist > 40 && dist < 480 && chargeCd <= 0;
+}
+
+/**
+ * Player is close enough to the boss arena to engage chase AI.
+ * @param {number} playerX
+ * @param {number} playerW
+ * @param {number} minX
+ * @param {number} maxX
+ * @param {number} [margin]
+ */
+export function bossPlayerInArena(playerX, playerW, minX, maxX, margin = TILE * 4) {
+  return playerX + playerW > minX - margin && playerX < maxX + margin;
+}
+
+/**
+ * Clamp boss X to [minX, maxX - w] and cancel an active charge on a wall hit.
+ * Mutates `e`. Returns true when a bound was hit.
+ * @param {{ x: number, w: number, vx: number, minX: number, maxX: number, charging: number }} e
+ */
+export function resolveBossArenaBounds(e) {
+  if (e.x < e.minX) {
+    e.x = e.minX;
+    e.vx = Math.abs(e.vx);
+    e.charging = 0;
+    return true;
+  }
+  if (e.x + e.w > e.maxX) {
+    e.x = e.maxX - e.w;
+    e.vx = -Math.abs(e.vx);
+    e.charging = 0;
+    return true;
+  }
+  return false;
+}
+
+/**
+ * Keep grounded enemies from walking off platform lips.
+ * Mutates `e`. Returns true if horizontal velocity was reversed at an edge.
+ * @param {{ x: number, y: number, w: number, h: number, fallen?: boolean }[]} platforms
+ * @param {{
+ *   x: number, y: number, w: number, h: number,
+ *   vx: number, grounded?: boolean, airborne?: boolean,
+ *   minX: number, maxX: number,
+ *   baseSpeed?: number, speed?: number, charging?: number
+ * }} e
+ */
+export function constrainGroundedEnemy(platforms, e) {
+  if (!e.grounded || e.airborne) return false;
+  const lead = e.vx < 0 ? e.x + 6 : e.x + e.w - 6;
+  const mid = e.x + e.w * 0.5;
+  if (e.vx !== 0 && floorYUnderEntity(platforms, e, lead) === null) {
+    e.x = Math.max(e.minX, Math.min(e.maxX - e.w, e.x - Math.sign(e.vx) * 4));
+    e.vx = -Math.sign(e.vx || 1) * Math.abs(e.vx || e.baseSpeed || e.speed);
+    e.charging = 0;
+    const floor = floorYUnderEntity(platforms, e, e.x + e.w * 0.5);
+    if (floor != null) e.y = floor - e.h;
+    return true;
+  }
+  const floor = floorYUnderEntity(platforms, e, mid);
+  if (floor != null) e.y = floor - e.h;
+  return false;
+}
+
+/**
+ * Nudge the player left of a locked exit and reverse rightward velocity.
+ * Mutates `player`.
+ * @param {{ x: number, w: number, vx: number }} player
+ * @param {{ x: number }} exit
+ */
+export function pushBackFromLockedExit(player, exit) {
+  player.x = Math.min(player.x, exit.x - player.w - 2);
+  if (player.vx > 0) player.vx = -120;
+}
