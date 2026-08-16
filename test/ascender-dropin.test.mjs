@@ -16,10 +16,15 @@ test("Ascender floor pads leave a one-tile drop-in beside cling shafts", () => {
   assert.ok(shafts.length >= 2, "expected mirrored cling shafts");
 
   const solids = solidPlatforms();
-  const floorY = 12 * TILE;
+  const floors = level.platforms.filter((p) => p.h >= 2 * TILE && p.w > TILE);
+  assert.ok(floors.length >= 2, "expected split floor pads");
+  const floorY = Math.max(...floors.map((p) => p.y));
 
-  for (const shaft of shafts) {
-    const centerish = 32 * TILE;
+  const teach = shafts.filter((s) => s.y + s.h >= floorY - 2);
+  assert.ok(teach.length >= 2, "teach shafts reach the floor");
+
+  const centerish = level.width / 2;
+  for (const shaft of teach) {
     const shaftMid = shaft.x + shaft.w / 2;
     // Drop-in sits on the outer side (between the shortened floor pad and the shaft).
     const gapX = shaftMid < centerish ? shaft.x - TILE : shaft.x + shaft.w;
