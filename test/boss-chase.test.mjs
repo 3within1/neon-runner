@@ -62,10 +62,13 @@ test("bossPlayerInArena uses a TILE*4 engagement margin", () => {
   const minX = 1000;
   const maxX = 1400;
   const margin = TILE * 4;
-  assert.equal(bossPlayerInArena(minX - margin - 10, 40, minX, maxX), false);
-  assert.equal(bossPlayerInArena(minX - margin, 40, minX, maxX), true);
-  assert.equal(bossPlayerInArena(maxX + margin - 1, 40, minX, maxX), true);
-  assert.equal(bossPlayerInArena(maxX + margin, 40, minX, maxX), false);
+  const w = 40;
+  // Left gate is playerX + w > minX - margin
+  assert.equal(bossPlayerInArena(minX - margin - w, w, minX, maxX), false);
+  assert.equal(bossPlayerInArena(minX - margin - w + 1, w, minX, maxX), true);
+  // Right gate is playerX < maxX + margin
+  assert.equal(bossPlayerInArena(maxX + margin - 1, w, minX, maxX), true);
+  assert.equal(bossPlayerInArena(maxX + margin, w, minX, maxX), false);
 });
 
 test("resolveBossArenaBounds clamps X and cancels charge on a wall hit", () => {
