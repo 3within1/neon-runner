@@ -241,8 +241,7 @@ export function resetRun(full = false, opts = {}) {
   resetPlayer(checkpoint);
   resetSectorElapsed();
   clearReplay();
-  camera.x = 0;
-  camera.y = 0;
+  snapCameraToPlayer();
   setShake(0);
   setShakeOffset(0, 0);
   updateHud();
@@ -259,8 +258,7 @@ export function advanceLevel() {
   resetPlayer(checkpoint);
   resetSectorElapsed();
   clearReplay();
-  camera.x = 0;
-  camera.y = 0;
+  snapCameraToPlayer();
   setShake(0);
   setShakeOffset(0, 0);
   updateHud();
@@ -320,6 +318,7 @@ export function hitPlayer(force = false) {
 
   sfx.hit();
   resetPlayer(checkpoint);
+  snapCameraToPlayer();
   return true;
 }
 
@@ -920,13 +919,37 @@ export function updateExit() {
   completeSectorOrRun();
 }
 
+/** Show more of the climb above the runner on tall sectors. */
+function cameraYBias() {
+  return level.height > H + TILE * 4 ? 0.62 : 0.55;
+}
+
+function clampCamera(x, y) {
+  return {
+    x: Math.max(0, Math.min(level.width - W, x)),
+    y: Math.max(0, Math.min(level.height - H, y)),
+  };
+}
+
+/** Instant follow — used on spawn / respawn so tall climbs don't lerp from y=0. */
+export function snapCameraToPlayer() {
+  const next = clampCamera(
+    player.x + player.w / 2 - W * 0.38,
+    player.y + player.h / 2 - H * cameraYBias()
+  );
+  camera.x = next.x;
+  camera.y = next.y;
+}
+
 export function updateCamera(dt) {
   const targetX = player.x + player.w / 2 - W * 0.38;
-  const targetY = player.y + player.h / 2 - H * 0.55;
-  camera.x += (targetX - camera.x) * Math.min(1, dt * 6);
-  camera.y += (targetY - camera.y) * Math.min(1, dt * 4);
-  camera.x = Math.max(0, Math.min(level.width - W, camera.x));
-  camera.y = Math.max(0, Math.min(level.height - H, camera.y));
+  const targetY = player.y + player.h / 2 - H * cameraYBias();
+  const next = clampCamera(
+    camera.x + (targetX - camera.x) * Math.min(1, dt * 6),
+    camera.y + (targetY - camera.y) * Math.min(1, dt * 4)
+  );
+  camera.x = next.x;
+  camera.y = next.y;
 
   if (shake > 0 && !reduceMotion) {
     decayShake(dt);
