@@ -310,7 +310,8 @@ export const LEVELS = [
       [1, 2, 18, 1],
     ],
     hazards: [
-      [6.15, 33.65, 7.7, 0.35],
+      // Spikes only in the chimney well — keep the 1-tile drop-ins clear so cling can arm
+      [8.15, 33.65, 3.7, 0.35],
       [8, 16.2, 4, 0.12, "laser", 1.25],
       [7, 8.2, 6, 0.12, "laser", 1.1],
       [0.2, 19.2, 3, 0.2, "electric"],

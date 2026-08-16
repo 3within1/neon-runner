@@ -35,5 +35,11 @@ test("Ascender floor pads leave a one-tile drop-in beside cling shafts", () => {
       false,
       `drop-in beside shaft at x=${shaft.x / TILE} must be open air`
     );
+    const spiked = level.hazards.some((h) => aabb(gap, h));
+    assert.equal(
+      spiked,
+      false,
+      `drop-in beside shaft at x=${shaft.x / TILE} must not be spiked`
+    );
   }
 });
