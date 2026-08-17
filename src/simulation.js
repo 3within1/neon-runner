@@ -22,19 +22,24 @@ import {
   advanceProjectile,
   bossPhaseFromHp,
   buildLevel,
+  checkpointTouchResult,
   electricHazardPulse,
   enemyBody,
   floorYUnderEntity,
   getLevelCount,
   getLevelDef,
   getLivingBoss,
+  hasFloorSupportAt,
   isExitLocked,
   isLaserHazardOn,
+  isSafeStandingAt,
   isStompHit,
   makeTurretBolt,
   minibossPhaseFromHp,
   projectileCanHurtPlayer,
   projectileExpired,
+  resolveBossAirborneGroundY,
+  resolveBossAirborneSlideX,
   solidPlatforms,
   stepPatrol1D,
   tickCollapsePlatform,
@@ -160,26 +165,7 @@ function syncAbilities() {
 
 function isSafeStanding(px, py) {
   const feet = { x: px, y: py, w: player.w, h: player.h };
-  for (const h of level.hazards) {
-    if (h.kind === "laser" && !h.on) continue;
-    if (aabb(feet, h)) return false;
-  }
-  for (const e of level.enemies) {
-    if (!e.alive) continue;
-    if (aabb(feet, enemyBody(e))) return false;
-  }
-  for (const p of level.platforms) {
-    if (p.kind !== "collapse" || p.fallen) continue;
-    if (
-      player.onGround &&
-      feet.x + feet.w > p.x &&
-      feet.x < p.x + p.w &&
-      Math.abs(feet.y + feet.h - p.y) < 3
-    ) {
-      return false;
-    }
-  }
-  return true;
+  return isSafeStandingAt(feet, player.onGround, level.hazards, level.enemies, level.platforms);
 }
 
 export function resetPlayer(at = checkpoint) {
@@ -500,7 +486,7 @@ function floorYUnder(e, atX) {
 }
 
 function hasFloorSupport(e, atX) {
-  return floorYUnder(e, atX) !== null;
+  return hasFloorSupportAt(level.platforms, e, atX);
 }
 
 /**
@@ -566,16 +552,8 @@ function updateBossChase(e, dt) {
   if (e.airborne) {
     e.vy += GRAVITY * 1.1 * dt;
     e.y += e.vy * dt;
-    const nextX = e.x + Math.sign(dx) * chaseSpeed * 0.55 * dt;
-    const clampedX = Math.max(e.minX, Math.min(e.maxX - e.w, nextX));
-    // Only slide horizontally when the landing column still has floor.
-    if (hasFloorSupport({ ...e, x: clampedX }, clampedX + e.w * 0.5)) {
-      e.x = clampedX;
-    } else {
-      e.x = Math.max(e.minX, Math.min(e.maxX - e.w, e.x));
-    }
-    const floorY = floorYUnder(e, e.x + e.w * 0.5);
-    const ground = floorY != null ? floorY : e.minY + e.h;
+    e.x = resolveBossAirborneSlideX(e, dx, chaseSpeed, dt, level.platforms);
+    const ground = resolveBossAirborneGroundY(level.platforms, e);
     if (e.y + e.h >= ground) {
       e.y = ground - e.h;
       e.vy = 0;
@@ -821,11 +799,11 @@ export function updateCollapse(dt) {
 export function updateCheckpoints() {
   if (state !== "playing") return;
   for (const c of level.checkpoints) {
-    if (c.activated) continue;
-    if (!aabb(player, c)) continue;
+    const result = checkpointTouchResult(player, c, player.h);
+    if (!result) continue;
     c.activated = true;
-    setCheckpoint(c.x + 8, c.y - player.h);
-    player.invuln = Math.max(player.invuln, 0.45);
+    setCheckpoint(result.spawn.x, result.spawn.y);
+    player.invuln = Math.max(player.invuln, result.invulnBoost);
     sfx.checkpoint();
     announce("CHECKPOINT");
   }
