@@ -394,6 +394,33 @@ export function startingLivesForMode() {
 }
 
 /**
+ * Which end-of-sector flow to run after touching an unlocked exit.
+ * @param {{
+ *   practiceMode: boolean,
+ *   runMode: RunMode,
+ *   levelIndex: number,
+ *   levelCount: number
+ * }} opts
+ * @returns {'practice' | 'timeAttack' | 'continue' | 'campaignWin'}
+ */
+export function resolveSectorClearKind({
+  practiceMode: practice,
+  runMode: mode,
+  levelIndex: index,
+  levelCount,
+}) {
+  if (practice) return "practice";
+  if (mode === "timeAttack") return "timeAttack";
+  if (index < levelCount - 1) return "continue";
+  return "campaignWin";
+}
+
+/** Time Attack never advances to the next sector mid-run. */
+export function canAdvanceLevel(mode) {
+  return mode !== "timeAttack";
+}
+
+/**
  * Deduped frame-error logging policy for the rAF loop (#18).
  * Mutates `counts` (message → occurrence). Returns whether/how to log.
  * @param {Map<string, number>} counts
