@@ -136,3 +136,10 @@ export function resolveAxis(entity, platforms, axis, prev) {
     }
   }
 }
+
+export function resolveBufferedJumpKind({ wallCling, wallDir, onGround, coyote, airJumps }) {
+  if (wallCling > 0 && wallDir !== 0 && !onGround) return "wall";
+  if (coyote > 0) return "coyote";
+  if (airJumps > 0) return "air";
+  return null;
+}
