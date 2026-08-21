@@ -42,9 +42,12 @@ import {
 } from "./level.js";
 import {
   aabb,
+  canDetectWallCling,
   capWallSlideFall,
   integrateRunVelocity,
   resolveAxis,
+  resolvePlayerAnim,
+  resolveStompImpact,
   segmentHitsRect,
   shouldApplyRunClamp,
   wallClingDir,
@@ -92,6 +95,7 @@ import {
   setShakeOffset,
   setState,
   shake,
+  shouldFinishDeathReplay,
   startingLivesForMode,
   state,
   tickCombo,
@@ -343,7 +347,11 @@ function tryDash() {
 }
 
 function detectWallCling(dt) {
-  if (!player.canWallCling || player.onGround || player.dashTimer > 0) {
+  if (!canDetectWallCling({
+    canWallCling: player.canWallCling,
+    onGround: player.onGround,
+    dashTimer: player.dashTimer,
+  })) {
     player.wallDir = 0;
     player.wallCling = 0;
     return;
@@ -472,12 +480,14 @@ export function updatePlayer(dt) {
     }
   }
 
-  if (player.dashTimer > 0) player.anim = "run";
-  else if (player.wallCling > 0 && player.wallDir !== 0 && !player.onGround) {
-    player.anim = "cling";
-  } else if (!player.onGround) player.anim = player.vy < 0 ? "jump" : "fall";
-  else if (Math.abs(player.vx) > 20) player.anim = "run";
-  else player.anim = "idle";
+  player.anim = resolvePlayerAnim({
+    dashTimer: player.dashTimer,
+    wallCling: player.wallCling,
+    wallDir: player.wallDir,
+    onGround: player.onGround,
+    vy: player.vy,
+    vx: player.vx,
+  });
 
   const speeds = { idle: 0.18, run: 0.08, jump: 0.12, fall: 0.12, cling: 0.16 };
   player.frameTimer += dt;
@@ -737,8 +747,13 @@ export function updateEnemies(dt) {
         e.alive = false;
         awardScore(e.score);
         addRunStomp(1);
-        setShake(e.boss ? 0.45 : 0.15);
-        setHitStop(e.boss ? 0.14 : e.type === "armored" ? 0.1 : 0.05);
+        const impact = resolveStompImpact({
+          boss: !!e.boss,
+          armored: e.type === "armored",
+          killed: true,
+        });
+        setShake(impact.shake);
+        setHitStop(impact.hitStop);
         updateHud();
         sfx.stomp();
         if (e.boss) {
@@ -747,8 +762,13 @@ export function updateEnemies(dt) {
         }
       } else {
         e.flash = 0.35;
-        setShake(e.boss ? 0.16 : 0.08);
-        setHitStop(e.boss ? 0.1 : e.type === "armored" ? 0.08 : 0.04);
+        const impact = resolveStompImpact({
+          boss: !!e.boss,
+          armored: e.type === "armored",
+          killed: false,
+        });
+        setShake(impact.shake);
+        setHitStop(impact.hitStop);
         sfx.stomp();
       }
       return;
@@ -939,7 +959,7 @@ export function updateCamera(dt) {
 
 export function finalizeReplayIfDone(elapsed) {
   if (state !== "replaying") return;
-  if (elapsed >= 2) {
+  if (shouldFinishDeathReplay(elapsed)) {
     setState("dead");
     finishDeathPresentation();
   }

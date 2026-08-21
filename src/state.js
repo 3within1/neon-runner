@@ -351,12 +351,22 @@ export function decayShake(dt) {
   shake = Math.max(0, shake - dt);
 }
 
+/** Hit-stop never shortens an already-longer freeze (boss stomps stack over chip). */
+export function nextHitStop(current, requested) {
+  return Math.max(current, requested);
+}
+
 export function setHitStop(sec) {
-  hitStop = Math.max(hitStop, sec);
+  hitStop = nextHitStop(hitStop, sec);
 }
 
 export function tickHitStop(dt) {
   hitStop = Math.max(0, hitStop - dt);
+}
+
+/** Death replay presents the end screen once elapsed crosses this threshold. */
+export function shouldFinishDeathReplay(elapsed, duration = 2) {
+  return elapsed >= duration;
 }
 
 export function setCrackFlash(sec) {
