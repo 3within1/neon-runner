@@ -1,11 +1,11 @@
 /* Minimal offline cache for NEON RUNNER */
-const CACHE = "neon-runner-v2.0.11";
+const CACHE = "neon-runner-v2.0.17";
 const ASSETS = [
   "./",
   "./index.html",
   "./manifest.webmanifest",
   "./src/main.js",
-  "./src/main.js?v=2.0.11",
+  "./src/main.js?v=2.0.17",
   "./src/game.js",
   "./src/simulation.js",
   "./src/render.js",
@@ -22,7 +22,7 @@ const ASSETS = [
   "./src/dom.js",
   "./src/constants.js",
   "./src/style.css",
-  "./src/style.css?v=2.0.11",
+  "./src/style.css?v=2.0.17",
   "./assets/icon.svg",
   "./assets/icon-192.png",
   "./assets/icon-512.png",
