@@ -1,4 +1,11 @@
-import { WALL_JUMP_VX, WALL_JUMP_VY, WALL_SLIDE_SPEED } from "./constants.js";
+import {
+  INVULN_STOMP,
+  STOMP_BOUNCE,
+  TILE,
+  WALL_JUMP_VX,
+  WALL_JUMP_VY,
+  WALL_SLIDE_SPEED,
+} from "./constants.js";
 
 export function rect(x, y, w, h) {
   return { x, y, w, h };
@@ -99,6 +106,75 @@ export function capWallSlideFall(vy, wallCling, wallDir) {
     return Math.min(vy, WALL_SLIDE_SPEED);
   }
   return vy;
+}
+
+/**
+ * Wall-jump needs an active cling grace, a known wall face, and airborne feet.
+ * @param {{ wallCling: number, wallDir: number, onGround: boolean }} opts
+ */
+export function canWallJump({ wallCling, wallDir, onGround }) {
+  return wallCling > 0 && wallDir !== 0 && !onGround;
+}
+
+/**
+ * Player impulse after a confirmed stomp (bounce + short i-frames + jump-cut exempt).
+ * @param {number} invuln
+ * @param {{ bounce?: number, stompInvuln?: number }} [opts]
+ */
+export function resolveStompPlayerImpulse(
+  invuln,
+  { bounce = STOMP_BOUNCE, stompInvuln = INVULN_STOMP } = {}
+) {
+  return {
+    vy: bounce,
+    jumpCutExempt: true,
+    invuln: Math.max(invuln, stompInvuln),
+  };
+}
+
+/**
+ * Enemy fields after taking one stomp hit (clears charge/slam; bosses truncate chargeCd).
+ * @param {{ hp: number, charging?: number, airborne?: boolean, chargeCd?: number, boss?: boolean }} enemy
+ * @param {{ bossChargeCdCap?: number }} [opts]
+ */
+export function resolveStompEnemyHit(enemy, { bossChargeCdCap = 0.35 } = {}) {
+  const chargeCd = enemy.chargeCd ?? 0;
+  return {
+    hp: enemy.hp - 1,
+    charging: 0,
+    airborne: false,
+    chargeCd: enemy.boss ? Math.min(chargeCd, bossChargeCdCap) : chargeCd,
+  };
+}
+
+/** True when the runner has fallen below the sector floor kill plane. */
+export function isFallenIntoPit(playerY, levelHeight, margin = 80) {
+  return playerY > levelHeight + margin;
+}
+
+/**
+ * Snap a grounded entity's feet onto the nearest solid platform top under midX.
+ * Mutates `e.y` / `e.minY` / `e.maxY` when a pad is found. Returns that top Y, or null.
+ * @param {{ x: number, y: number, w: number, h: number, fallen?: boolean }[]} platforms
+ * @param {{ x: number, y: number, w: number, h: number, minY?: number, maxY?: number }} e
+ * @param {number} [lookBack]
+ * @returns {number | null}
+ */
+export function snapFeetToNearestPlatform(platforms, e, lookBack = TILE) {
+  const midX = e.x + e.w * 0.5;
+  let bestTop = null;
+  for (const p of platforms) {
+    if (p.fallen) continue;
+    if (midX < p.x || midX > p.x + p.w) continue;
+    if (p.y < e.y - lookBack) continue;
+    if (bestTop === null || p.y < bestTop) bestTop = p.y;
+  }
+  if (bestTop !== null) {
+    e.y = bestTop - e.h;
+    e.minY = e.y;
+    e.maxY = e.y + e.h;
+  }
+  return bestTop;
 }
 
 export function resolveAxis(entity, platforms, axis, prev) {
