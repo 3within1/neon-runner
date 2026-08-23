@@ -136,3 +136,53 @@ export function resolveAxis(entity, platforms, axis, prev) {
     }
   }
 }
+
+/**
+ * Solid pad currently under an entity's feet (within feetSlack px), preferring the widest.
+ * Used to shrink grounded patrol spans onto supporting lips after spawn snap.
+ * @param {{ x: number, y: number, w: number, h: number, fallen?: boolean }[]} platforms
+ * @param {{ x: number, y: number, w: number, h: number }} e
+ * @param {number} [atX]
+ * @param {number} [feetSlack]
+ * @returns {{ x: number, y: number, w: number, h: number, fallen?: boolean } | null}
+ */
+export function platformUnderFeet(platforms, e, atX = e.x + e.w * 0.5, feetSlack = 4) {
+  const feetY = e.y + e.h;
+  let best = null;
+  for (const p of platforms) {
+    if (p.fallen) continue;
+    if (atX < p.x || atX > p.x + p.w) continue;
+    if (Math.abs(p.y - feetY) > feetSlack) continue;
+    if (!best || p.w > best.w) best = p;
+  }
+  return best;
+}
+
+/**
+ * Intersect an enemy's X patrol with a supporting pad (inset by pad px) and clamp x.
+ * Mutates `e.minX`, `e.maxX`, and `e.x`. If the shrunk span is narrower than the
+ * body, resets the patrol to the full padded pad so the foe can still stand.
+ * @param {{ x: number, w: number, minX: number, maxX: number }} e
+ * @param {{ x: number, w: number } | null | undefined} plat
+ * @param {number} [pad]
+ * @returns {boolean} true when a platform was applied
+ */
+export function clampPatrolToPlatform(e, plat, pad = 2) {
+  if (!plat) return false;
+  e.minX = Math.max(e.minX, plat.x + pad);
+  e.maxX = Math.min(e.maxX, plat.x + plat.w - pad);
+  if (e.maxX - e.minX < e.w) {
+    e.minX = plat.x + pad;
+    e.maxX = plat.x + plat.w - pad;
+  }
+  e.x = Math.max(e.minX, Math.min(e.maxX - e.w, e.x));
+  return true;
+}
+
+/**
+ * Land SFX fires only on the grounded transition while falling, unless suppressLand.
+ * @param {{ wasGrounded: boolean, falling: boolean, suppressLand: boolean }} opts
+ */
+export function shouldPlayLandSfx({ wasGrounded, falling, suppressLand }) {
+  return !wasGrounded && falling && !suppressLand;
+}
