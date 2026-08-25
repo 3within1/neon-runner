@@ -10,8 +10,8 @@ test("isFeetOnPlatformTop is true when feet sit on the platform top", () => {
 });
 
 test("isFeetOnPlatformTop rejects feet entirely left or right of the pad", () => {
-  assert.equal(isFeetOnPlatformTop(rect(120, 172, 36, 40), pad), false, "left of pad");
-  assert.equal(isFeetOnPlatformTop(rect(0, 172, 36, 40), pad), false, "right of pad");
+  assert.equal(isFeetOnPlatformTop(rect(120, 172, 36, 40), pad), false, "right of pad");
+  assert.equal(isFeetOnPlatformTop(rect(0, 172, 36, 40), pad), false, "left of pad");
 });
 
 test("isFeetOnPlatformTop uses a strict <tol vertical window (default 3)", () => {
