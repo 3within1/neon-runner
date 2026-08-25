@@ -27,10 +27,10 @@ import {
   floorYUnderEntity,
   getLevelCount,
   getLevelDef,
+  enemyContactOutcome,
   getLivingBoss,
   isExitLocked,
   isLaserHazardOn,
-  isStompHit,
   makeTurretBolt,
   minibossPhaseFromHp,
   projectileCanHurtPlayer,
@@ -44,6 +44,7 @@ import {
   aabb,
   capWallSlideFall,
   integrateRunVelocity,
+  isFeetOnPlatformTop,
   resolveAxis,
   segmentHitsRect,
   shouldApplyRunClamp,
@@ -170,12 +171,7 @@ function isSafeStanding(px, py) {
   }
   for (const p of level.platforms) {
     if (p.kind !== "collapse" || p.fallen) continue;
-    if (
-      player.onGround &&
-      feet.x + feet.w > p.x &&
-      feet.x < p.x + p.w &&
-      Math.abs(feet.y + feet.h - p.y) < 3
-    ) {
+    if (player.onGround && isFeetOnPlatformTop(feet, p)) {
       return false;
     }
   }
@@ -462,11 +458,7 @@ export function updatePlayer(dt) {
     }
     // Collapse platforms underfoot
     for (const p of level.platforms) {
-      if (
-        player.x + player.w > p.x &&
-        player.x < p.x + p.w &&
-        Math.abs(player.y + player.h - p.y) < 3
-      ) {
+      if (isFeetOnPlatformTop(player, p)) {
         armCollapsePlatform(p);
       }
     }
@@ -713,17 +705,10 @@ export function updateEnemies(dt) {
     }
 
     const body = enemyBody(e);
-    if (!aabb(player, body)) continue;
+    const outcome = enemyContactOutcome(player, body);
+    if (!outcome) continue;
 
-    const prevBottom = player.prevY + player.h;
-    const stomping = isStompHit(
-      player.vy,
-      prevBottom,
-      body.y,
-      player.y + player.h
-    );
-
-    if (stomping) {
+    if (outcome === "stomp") {
       player.vy = STOMP_BOUNCE;
       player.jumpCutExempt = true;
       player.invuln = Math.max(player.invuln, INVULN_STOMP);
