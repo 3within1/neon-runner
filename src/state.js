@@ -409,3 +409,13 @@ export function noteFrameError(counts, err) {
   if (count % 300 === 0) return { key, kind: "repeat", count };
   return { key, kind: "silent", count };
 }
+
+/**
+ * HUD announce copy when `addScore` crosses one or more extra-life thresholds.
+ * @param {number} gained
+ * @returns {string | null}
+ */
+export function extraLifeAnnounceLabel(gained) {
+  if (gained <= 0) return null;
+  return gained === 1 ? "EXTRA LIFE" : `${gained} EXTRA LIVES`;
+}

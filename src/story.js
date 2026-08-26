@@ -3,6 +3,8 @@
  * Sector ids/names must stay aligned with LEVELS / SECTOR_THEMES (asserted in game.js).
  */
 
+import { formatClock } from "./meta.js";
+
 /**
  * @typedef {{
  *   id: string,
@@ -110,4 +112,56 @@ export function getSectorStory(index) {
 export function formatSectorClearTagline(index, score, next) {
   const beat = getSectorStory(index);
   return `${beat.clear} Next uplink: ${next.name}. DATA ${String(score).padStart(4, "0")}.`;
+}
+
+/**
+ * Time-trial win overlay body (sector clock + best note).
+ * @param {number} elapsed
+ * @param {boolean} improved
+ * @param {number} best
+ */
+export function formatTimeTrialClearNote(elapsed, improved, best) {
+  const clock = formatClock(elapsed);
+  if (improved) return `Sector clear in ${clock}. NEW BEST.`;
+  return `Sector clear in ${clock}. Best ${best > 0 ? formatClock(best) : "--"}.`;
+}
+
+/**
+ * Suffix appended to the campaign / lockdown win tagline for clear-time bests.
+ * @param {number} elapsed
+ * @param {boolean} improvedClear
+ * @param {number | null} prevBest
+ */
+export function formatCampaignWinBestSuffix(elapsed, improvedClear, prevBest) {
+  const clearClock = formatClock(elapsed);
+  if (improvedClear) return ` Clear ${clearClock} — NEW BEST.`;
+  return ` Clear ${clearClock}. Best ${formatClock(prevBest)}.`;
+}
+
+/**
+ * One-shot ability unlock announces when sector abilities first become available.
+ * @param {{ canWallCling: boolean, maxAirJumps: number, canDash: boolean }} abilities
+ * @param {{ wall?: boolean, double?: boolean, dash?: boolean }} announced
+ * @returns {{ messages: string[], announced: { wall: boolean, double: boolean, dash: boolean } }}
+ */
+export function nextAbilityAnnouncements(abilities, announced = {}) {
+  const next = {
+    wall: !!announced.wall,
+    double: !!announced.double,
+    dash: !!announced.dash,
+  };
+  const messages = [];
+  if (abilities.canWallCling && !next.wall) {
+    next.wall = true;
+    messages.push(ABILITY_STORY.wallCling);
+  }
+  if (abilities.maxAirJumps > 0 && !next.double) {
+    next.double = true;
+    messages.push(ABILITY_STORY.doubleJump);
+  }
+  if (abilities.canDash && !next.dash) {
+    next.dash = true;
+    messages.push(ABILITY_STORY.dash);
+  }
+  return { messages, announced: next };
 }
