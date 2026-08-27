@@ -57,7 +57,7 @@ export const SECTOR_STORIES = [
   {
     id: "ascender",
     name: "ASCENDER",
-    brief: "Climb the corp-locked uplink towers. Wall cling is live; a sentinel guards the top.",
+    brief: "Ride the uplink shaft. Wall cling is live; a sentinel guards the summit.",
     clear: "Towers clear. Needle defense ahead — air jump unlocked.",
   },
   {

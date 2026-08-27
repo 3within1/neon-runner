@@ -92,23 +92,26 @@ function drawCityBlocks(bg, count, scrollMul, baseH, spread) {
 
 function drawTowers(bg) {
   const scroll = camera.x * 0.2;
+  // Rise with the camera so the skyline looms at street level and opens at the summit.
+  const rise = camera.y * 0.12;
   for (let i = 0; i < 14; i++) {
     const span = W + 160;
     const bx = mod(i * 110 - scroll, span) - 80;
     const bh = 140 + ((i * 53) % 220);
     const bw = 22 + (i % 4) * 6;
+    const top = H - bh - 30 - rise;
     ctx.fillStyle = i % 2 === 0 ? bg.buildingA : bg.buildingB;
-    ctx.fillRect(bx, H - bh - 30, bw, bh);
+    ctx.fillRect(bx, top, bw, bh);
     // antenna tip
     ctx.strokeStyle = bg.accent;
     ctx.lineWidth = 1.5;
     ctx.beginPath();
-    ctx.moveTo(bx + bw / 2, H - bh - 30);
-    ctx.lineTo(bx + bw / 2, H - bh - 30 - 18 - (i % 5) * 4);
+    ctx.moveTo(bx + bw / 2, top);
+    ctx.lineTo(bx + bw / 2, top - 18 - (i % 5) * 4);
     ctx.stroke();
     if (reduceMotion) continue;
     ctx.fillStyle = bg.window;
-    for (let wy = H - bh; wy < H - 45; wy += 14) {
+    for (let wy = top + 30; wy < H - 45; wy += 14) {
       ctx.fillRect(bx + 4, wy, bw - 8, 3);
     }
   }

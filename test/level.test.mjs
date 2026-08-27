@@ -10,8 +10,16 @@ test("Ascender sentinel patrols the summit arena", () => {
   const boss = getLivingBoss();
   assert.ok(boss, "living boss exists");
   assert.equal(boss.type, "towerSentinel");
-  assert.ok(boss.minX >= 14 * TILE, "patrol min stays on summit");
-  assert.ok(boss.maxX <= 50 * TILE, "patrol max stays on summit");
+  assert.ok(boss.minX >= 1 * TILE, "patrol min stays on summit");
+  assert.ok(boss.maxX <= 19 * TILE, "patrol max stays on summit");
+});
+
+test("Ascender is a tall shaft so the camera can scroll up", () => {
+  buildLevel(1);
+  assert.ok(level.height >= 30 * TILE, "tall enough to scroll vertically");
+  assert.ok(level.width <= 22 * TILE, "narrow enough that climb is the main axis");
+  assert.ok(level.spawn.y > level.height * 0.7, "spawn is near the floor");
+  assert.ok(level.exit.y < 4 * TILE, "exit is at the summit");
 });
 
 test("Ascender has tall cling shafts for wall jump", () => {
