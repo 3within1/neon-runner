@@ -5,7 +5,6 @@ import {
   DASH_SPEED,
   DOUBLE_JUMP_VELOCITY,
   GRAVITY,
-  INVULN_HIT,
   INVULN_STOMP,
   JUMP_CUT_FACTOR,
   JUMP_CUT_THRESHOLD,
@@ -42,11 +41,14 @@ import {
 } from "./level.js";
 import {
   aabb,
+  bossOffArenaPatrolVx,
   capWallSlideFall,
+  collectBossPhaseAnnounces,
   integrateRunVelocity,
   resolveAxis,
   segmentHitsRect,
   shouldApplyRunClamp,
+  stepBossEngage,
   wallClingDir,
   wallJumpVelocity,
 } from "./physics.js";
@@ -72,6 +74,7 @@ import {
   reduceMotion,
   practiceMode,
   abilitiesForSector,
+  applyPlayerRespawn,
   comboBonusForStomp,
   nextComboOnStomp,
   resetRunStats,
@@ -183,27 +186,7 @@ function isSafeStanding(px, py) {
 }
 
 export function resetPlayer(at = checkpoint) {
-  player.x = at.x;
-  player.y = at.y;
-  player.prevX = at.x;
-  player.prevY = at.y;
-  player.vx = 0;
-  player.vy = 0;
-  player.facing = 1;
-  player.onGround = false;
-  player.coyote = 0;
-  player.jumpBuffer = 0;
-  player.airJumps = player.maxAirJumps;
-  player.dashCd = 0;
-  player.dashTimer = 0;
-  player.wallDir = 0;
-  player.wallCling = 0;
-  player.anim = "idle";
-  player.frame = 0;
-  player.frameTimer = 0;
-  player.invuln = INVULN_HIT;
-  player.jumpCutExempt = false;
-  player.suppressLand = true;
+  applyPlayerRespawn(player, at);
 }
 
 /**
@@ -538,27 +521,21 @@ function updateBossChase(e, dt) {
   const chargeDur = enraged ? 0.9 : 0.7;
   const chargeCd = enraged ? 0.85 : phase === 2 ? 1.1 : 1.35;
 
-  if (inArena && !e.engaged) {
-    e.engaged = true;
-    announce(e.miniboss ? BOSS_STORY.sentinelOnline : BOSS_STORY.online);
+  const engage = stepBossEngage(inArena, e.engaged, e.miniboss);
+  e.engaged = engage.engaged;
+  if (engage.announceKey) {
+    announce(BOSS_STORY[engage.announceKey]);
     sfx.bossRoar();
     setShake(0.25);
   }
 
-  if (phase >= 2 && e.phaseAnnounced < 2) {
-    e.phaseAnnounced = 2;
-    if (!e.miniboss) {
-      announce(BOSS_STORY.armorBreak);
-      sfx.bossRoar();
-      setShake(0.28);
-    }
-  }
-  if (enraged && e.phaseAnnounced < 3) {
-    e.phaseAnnounced = 3;
-    e.enrageAnnounced = true;
-    announce(BOSS_STORY.overclock);
+  const phaseAnnounces = collectBossPhaseAnnounces(phase, e.miniboss, e.phaseAnnounced);
+  e.phaseAnnounced = phaseAnnounces.phaseAnnounced;
+  if (phaseAnnounces.enrageAnnounced) e.enrageAnnounced = true;
+  for (const key of phaseAnnounces.announceKeys) {
+    announce(BOSS_STORY[key]);
     sfx.bossRoar();
-    setShake(0.3);
+    setShake(key === "armorBreak" ? 0.28 : 0.3);
   }
 
   // Phase 2/3 aerial slam — stay inside arena X, land on floor under the boss.
@@ -617,7 +594,7 @@ function updateBossChase(e, dt) {
       sfx.bossCharge();
     }
   } else if (!inArena) {
-    if (Math.abs(e.vx) < 1) e.vx = e.baseSpeed;
+    e.vx = bossOffArenaPatrolVx(e.vx, e.baseSpeed);
   }
 
   e.x += e.vx * dt;
