@@ -3,6 +3,7 @@ import {
   COMBO_BONUS_EVERY,
   COYOTE_TIME,
   EXTRA_LIFE_EVERY,
+  INVULN_HIT,
   JUMP_BUFFER,
   LOCKDOWN_SCORE_MULT,
   LOCKDOWN_SPEED_MULT,
@@ -255,6 +256,37 @@ export function tickInvuln(invuln, dt) {
   if (invuln <= 0) return 0;
   if (!Number.isFinite(invuln)) return invuln;
   return Math.max(0, invuln - dt);
+}
+
+/**
+ * Apply non-fatal hit / checkpoint respawn fields (mirrors resetPlayer body).
+ * Mutates `p`. Returns `p`.
+ * @param {object} p player-like object (must already have maxAirJumps)
+ * @param {{ x: number, y: number }} at
+ */
+export function applyPlayerRespawn(p, at) {
+  p.x = at.x;
+  p.y = at.y;
+  p.prevX = at.x;
+  p.prevY = at.y;
+  p.vx = 0;
+  p.vy = 0;
+  p.facing = 1;
+  p.onGround = false;
+  p.coyote = 0;
+  p.jumpBuffer = 0;
+  p.airJumps = p.maxAirJumps;
+  p.dashCd = 0;
+  p.dashTimer = 0;
+  p.wallDir = 0;
+  p.wallCling = 0;
+  p.anim = "idle";
+  p.frame = 0;
+  p.frameTimer = 0;
+  p.invuln = INVULN_HIT;
+  p.jumpCutExempt = false;
+  p.suppressLand = true;
+  return p;
 }
 
 /**
