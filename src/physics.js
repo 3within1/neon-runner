@@ -1,4 +1,9 @@
-import { WALL_JUMP_VX, WALL_JUMP_VY, WALL_SLIDE_SPEED } from "./constants.js";
+import {
+  DASH_SPEED,
+  WALL_JUMP_VX,
+  WALL_JUMP_VY,
+  WALL_SLIDE_SPEED,
+} from "./constants.js";
 
 export function rect(x, y, w, h) {
   return { x, y, w, h };
@@ -135,4 +140,23 @@ export function resolveAxis(entity, platforms, axis, prev) {
       }
     }
   }
+}
+
+/**
+ * Mid-dash lock: full horizontal dash speed, no vertical drift (gravity skipped).
+ * @param {-1 | 1} dashDir
+ * @param {number} [speed]
+ * @returns {{ vx: number, vy: 0 }}
+ */
+export function holdDashVelocity(dashDir, speed = DASH_SPEED) {
+  return { vx: dashDir * speed, vy: 0 };
+}
+
+/**
+ * On dash start, cancel downward fall so a dash out of freefall stays level.
+ * Upward velocity is preserved (rare mid-jump dash).
+ * @param {number} vy
+ */
+export function dashStartVertical(vy) {
+  return Math.min(vy, 0);
 }

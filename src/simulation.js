@@ -2,7 +2,6 @@ import {
   COMBO_WINDOW,
   DASH_COOLDOWN,
   DASH_DURATION,
-  DASH_SPEED,
   DOUBLE_JUMP_VELOCITY,
   GRAVITY,
   INVULN_HIT,
@@ -43,6 +42,8 @@ import {
 import {
   aabb,
   capWallSlideFall,
+  dashStartVertical,
+  holdDashVelocity,
   integrateRunVelocity,
   resolveAxis,
   segmentHitsRect,
@@ -64,6 +65,7 @@ import {
   comboTimer,
   configureRunMode,
   decayShake,
+  extraLifeAnnounceLabel,
   level,
   levelIndex,
   lives,
@@ -101,9 +103,11 @@ import {
   tickWallClingGrace,
 } from "./state.js";
 import {
-  ABILITY_STORY,
   BOSS_STORY,
+  formatCampaignWinBestSuffix,
   formatSectorClearTagline,
+  formatTimeTrialClearNote,
+  nextAbilityAnnouncements,
   RUN_STORY,
 } from "./story.js";
 import { announce, setOverlay, updateHud, presentRunEnd } from "./ui.js";
@@ -118,16 +122,15 @@ import {
 } from "./meta.js";
 import { getSectorTheme } from "./sectorTheme.js";
 
-let abilityAnnouncedWall = false;
-let abilityAnnouncedDouble = false;
-let abilityAnnouncedDash = false;
+/** @type {{ wall: boolean, double: boolean, dash: boolean }} */
+let abilityAnnounced = { wall: false, double: false, dash: false };
 /** @type {null | { title: string, tagline: string, button: string, eyebrow?: string, outcome: 'won' | 'dead' }} */
 let pendingEnd = null;
 
 function awardScore(delta) {
   const gained = addScore(delta);
-  if (gained > 0) {
-    const label = gained === 1 ? "EXTRA LIFE" : `${gained} EXTRA LIVES`;
+  const label = extraLifeAnnounceLabel(gained);
+  if (label) {
     announce(`${label}. Lives ${lives}.`);
     sfx.extraLife();
   }
@@ -140,22 +143,13 @@ export function setCheckpoint(x, y) {
 }
 
 function syncAbilities() {
-  const { maxAirJumps, canDash, canWallCling } = abilitiesForSector(levelIndex);
-  player.maxAirJumps = maxAirJumps;
-  player.canDash = canDash;
-  player.canWallCling = canWallCling;
-  if (player.canWallCling && !abilityAnnouncedWall) {
-    abilityAnnouncedWall = true;
-    announce(ABILITY_STORY.wallCling);
-  }
-  if (player.maxAirJumps > 0 && !abilityAnnouncedDouble) {
-    abilityAnnouncedDouble = true;
-    announce(ABILITY_STORY.doubleJump);
-  }
-  if (player.canDash && !abilityAnnouncedDash) {
-    abilityAnnouncedDash = true;
-    announce(ABILITY_STORY.dash);
-  }
+  const abilities = abilitiesForSector(levelIndex);
+  player.maxAirJumps = abilities.maxAirJumps;
+  player.canDash = abilities.canDash;
+  player.canWallCling = abilities.canWallCling;
+  const next = nextAbilityAnnouncements(abilities, abilityAnnounced);
+  abilityAnnounced = next.announced;
+  for (const msg of next.messages) announce(msg);
 }
 
 function isSafeStanding(px, py) {
@@ -230,9 +224,7 @@ export function resetRun(full = false, opts = {}) {
     setScore(0);
     setLives(startingLivesForMode());
     resetRunStats();
-    abilityAnnouncedWall = false;
-    abilityAnnouncedDouble = false;
-    abilityAnnouncedDash = false;
+    abilityAnnounced = { wall: false, double: false, dash: false };
     pendingEnd = null;
   }
   buildLevel(levelIndex);
@@ -333,8 +325,9 @@ function tryDash() {
   player.dashDir = dir || 1;
   player.dashTimer = DASH_DURATION;
   player.dashCd = DASH_COOLDOWN;
-  player.vx = player.dashDir * DASH_SPEED;
-  player.vy = Math.min(player.vy, 0);
+  const held = holdDashVelocity(player.dashDir);
+  player.vx = held.vx;
+  player.vy = dashStartVertical(player.vy);
   player.invuln = Math.max(player.invuln, DASH_DURATION * 0.85);
   player.facing = player.dashDir;
   player.wallDir = 0;
@@ -376,8 +369,9 @@ export function updatePlayer(dt) {
 
   if (player.dashTimer > 0) {
     player.dashTimer = Math.max(0, player.dashTimer - dt);
-    player.vx = player.dashDir * DASH_SPEED;
-    player.vy = 0;
+    const held = holdDashVelocity(player.dashDir);
+    player.vx = held.vx;
+    player.vy = held.vy;
     input.jumpPressed = false;
     input.jumpReleased = false;
     input.dashPressed = false;
@@ -831,13 +825,6 @@ export function updateCheckpoints() {
   }
 }
 
-function formatClock(s) {
-  const mins = Math.floor(s / 60);
-  const secs = Math.floor(s % 60);
-  const ms = Math.floor((s % 1) * 100);
-  return `${mins}:${String(secs).padStart(2, "0")}.${String(ms).padStart(2, "0")}`;
-}
-
 function completeSectorOrRun() {
   if (practiceMode) {
     setState("won");
@@ -858,10 +845,7 @@ function completeSectorOrRun() {
     setState("won");
     stopMusic();
     sfx.win();
-    const clock = formatClock(sectorElapsed);
-    const note = improved
-      ? `Sector clear in ${clock}. NEW BEST.`
-      : `Sector clear in ${clock}. Best ${best > 0 ? formatClock(best) : "--"}.`;
+    const note = formatTimeTrialClearNote(sectorElapsed, improved, best);
     presentRunEnd("won", "TIME TRIAL", note, "RUN AGAIN", `SECTOR ${level.sector}`);
     return;
   }
@@ -891,10 +875,7 @@ function completeSectorOrRun() {
   setState("won");
   stopMusic();
   sfx.win();
-  const clearClock = formatClock(runElapsed);
-  const bestNote = improvedClear
-    ? ` Clear ${clearClock} — NEW BEST.`
-    : ` Clear ${clearClock}. Best ${formatClock(prevBest)}.`;
+  const bestNote = formatCampaignWinBestSuffix(runElapsed, improvedClear, prevBest);
   const tag =
     (runMode === "lockdown" ? RUN_STORY.lockdownWin(score) : RUN_STORY.win(score)) +
     bestNote;
