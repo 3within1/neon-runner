@@ -9,7 +9,7 @@ import {
   STOMP_SLACK,
   TILE,
 } from "./constants.js";
-import { rect } from "./physics.js";
+import { aabb, rect } from "./physics.js";
 import { enemySpeedMult, level, levelIndex, runMode } from "./state.js";
 
 /**
@@ -1136,6 +1136,22 @@ export function minibossPhaseFromHp(hp) {
  */
 export function isStompHit(vy, prevBottom, bodyY, bottom, slack = STOMP_SLACK) {
   return vy > 0 && prevBottom <= bodyY + slack && bottom >= bodyY;
+}
+
+/**
+ * Classify player vs enemy-body contact after movement.
+ * Stomp wins exclusively over side/bottom hurt when both could apply.
+ * @param {{ x: number, y: number, w: number, h: number, prevY: number, vy: number }} player
+ * @param {{ x: number, y: number, w: number, h: number }} body
+ * @returns {'stomp' | 'hurt' | null}
+ */
+export function enemyContactOutcome(player, body) {
+  if (!aabb(player, body)) return null;
+  const prevBottom = player.prevY + player.h;
+  if (isStompHit(player.vy, prevBottom, body.y, player.y + player.h)) {
+    return "stomp";
+  }
+  return "hurt";
 }
 
 /**

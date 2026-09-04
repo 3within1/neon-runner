@@ -136,3 +136,18 @@ export function resolveAxis(entity, platforms, axis, prev) {
     }
   }
 }
+
+/**
+ * True when an entity's feet span overlaps a platform's X range and sit
+ * within `tol` px of the platform top (used for collapse arming + safe-standing).
+ * @param {{ x: number, y: number, w: number, h: number }} entity
+ * @param {{ x: number, y: number, w: number }} platform
+ * @param {number} [tol=3]
+ */
+export function isFeetOnPlatformTop(entity, platform, tol = 3) {
+  return (
+    entity.x + entity.w > platform.x &&
+    entity.x < platform.x + platform.w &&
+    Math.abs(entity.y + entity.h - platform.y) < tol
+  );
+}
