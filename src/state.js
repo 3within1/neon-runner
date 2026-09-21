@@ -393,6 +393,32 @@ export function startingLivesForMode() {
   return runMode === "lockdown" ? LOCKDOWN_START_LIVES : START_LIVES;
 }
 
+export function resolveDeathEndPresentation(practiceMode, deathTagline) {
+  if (practiceMode) {
+    return {
+      outcome: "dead",
+      title: "PRACTICE CRASH",
+      tagline: deathTagline,
+      button: "RETRY REX",
+      eyebrow: "REX CORE",
+    };
+  }
+  return {
+    outcome: "dead",
+    title: "SYSTEM CRASH",
+    tagline: deathTagline,
+    button: "REBOOT",
+  };
+}
+
+export function isFatalPlayerHit(nextLives) {
+  return nextLives <= 0;
+}
+
+export function deathCrackFlashDuration(reduceMotion) {
+  return reduceMotion ? 0.2 : 0.85;
+}
+
 /**
  * Deduped frame-error logging policy for the rAF loop (#18).
  * Mutates `counts` (message → occurrence). Returns whether/how to log.

@@ -49,6 +49,7 @@ import {
   shouldApplyRunClamp,
   wallClingDir,
   wallJumpVelocity,
+  resolveBufferedJumpKind,
 } from "./physics.js";
 import { sfx, stopMusic } from "./audio.js";
 import {
@@ -99,6 +100,9 @@ import {
   tickInvuln,
   tickJumpBuffer,
   tickWallClingGrace,
+  resolveDeathEndPresentation,
+  isFatalPlayerHit,
+  deathCrackFlashDuration,
 } from "./state.js";
 import {
   ABILITY_STORY,
@@ -294,24 +298,11 @@ export function hitPlayer(force = false) {
   addRunDeath();
   updateHud();
 
-  if (nextLives <= 0) {
-    setCrackFlash(reduceMotion ? 0.2 : 0.85);
+  if (isFatalPlayerHit(nextLives)) {
+    setCrackFlash(deathCrackFlashDuration(reduceMotion));
     stopMusic();
     sfx.die();
-    pendingEnd = practiceMode
-      ? {
-          outcome: "dead",
-          title: "PRACTICE CRASH",
-          tagline: RUN_STORY.death,
-          button: "RETRY REX",
-          eyebrow: "REX CORE",
-        }
-      : {
-          outcome: "dead",
-          title: "SYSTEM CRASH",
-          tagline: RUN_STORY.death,
-          button: "REBOOT",
-        };
+    pendingEnd = resolveDeathEndPresentation(practiceMode, RUN_STORY.death);
     beginReplayPlayback();
     setState("replaying");
     player.invuln = Infinity;
@@ -405,16 +396,23 @@ export function updatePlayer(dt) {
   input.jumpPressed = false;
 
   if (player.dashTimer <= 0 && player.jumpBuffer > 0) {
-    if (tryWallJump()) {
+    const kind = resolveBufferedJumpKind({
+      wallCling: player.wallCling,
+      wallDir: player.wallDir,
+      onGround: player.onGround,
+      coyote: player.coyote,
+      airJumps: player.airJumps,
+    });
+    if (kind === "wall" && tryWallJump()) {
       /* wall jump consumed the buffer */
-    } else if (player.coyote > 0) {
+    } else if (kind === "coyote") {
       player.vy = JUMP_VELOCITY;
       player.onGround = false;
       player.coyote = 0;
       player.jumpBuffer = 0;
       player.jumpCutExempt = false;
       sfx.jump();
-    } else if (player.airJumps > 0) {
+    } else if (kind === "air") {
       player.vy = DOUBLE_JUMP_VELOCITY;
       player.airJumps -= 1;
       player.jumpBuffer = 0;
