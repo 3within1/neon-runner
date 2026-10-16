@@ -9,7 +9,7 @@ import {
   STOMP_SLACK,
   TILE,
 } from "./constants.js";
-import { rect } from "./physics.js";
+import { isExitStandingOnPlatform, rect } from "./physics.js";
 import { enemySpeedMult, level, levelIndex, runMode } from "./state.js";
 
 /**
@@ -1024,16 +1024,7 @@ export function makeTurretBolt(e, dir) {
 }
 
 function assertExitGrounded() {
-  const exit = level.exit;
-  const feetY = exit.y + exit.h;
-  const grounded = level.platforms.some(
-    (p) =>
-      !p.fallen &&
-      Math.abs(p.y - feetY) < 0.5 &&
-      exit.x + exit.w > p.x &&
-      exit.x < p.x + p.w
-  );
-  if (!grounded) {
+  if (!isExitStandingOnPlatform(level.exit, level.platforms)) {
     throw new Error(
       `Exit is not standing on a platform top in ${level.name} (sector ${level.sector})`
     );
