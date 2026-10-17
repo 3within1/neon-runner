@@ -10,7 +10,6 @@ import {
   JUMP_CUT_FACTOR,
   JUMP_CUT_THRESHOLD,
   JUMP_VELOCITY,
-  MAX_FALL,
   SCORE_PACK,
   STOMP_BOUNCE,
   TILE,
@@ -42,11 +41,13 @@ import {
 } from "./level.js";
 import {
   aabb,
-  capWallSlideFall,
   integrateRunVelocity,
+  nextFallVelocity,
   resolveAxis,
   segmentHitsRect,
   shouldApplyRunClamp,
+  shouldAutoCheckpoint,
+  stepPlayerAnimFrame,
   wallClingDir,
   wallJumpVelocity,
 } from "./physics.js";
@@ -430,10 +431,11 @@ export function updatePlayer(dt) {
     input.jumpReleased = false;
   }
 
-  if (player.dashTimer <= 0) {
-    player.vy = Math.min(MAX_FALL, player.vy + GRAVITY * dt);
-    player.vy = capWallSlideFall(player.vy, player.wallCling, player.wallDir);
-  }
+  player.vy = nextFallVelocity(player.vy, dt, {
+    dashTimer: player.dashTimer,
+    wallCling: player.wallCling,
+    wallDir: player.wallDir,
+  });
 
   player.prevX = player.x;
   player.prevY = player.y;
@@ -457,7 +459,7 @@ export function updatePlayer(dt) {
     if (!wasGrounded && falling && !player.suppressLand) sfx.land();
     player.suppressLand = false;
     player.jumpCutExempt = false;
-    if (isSafeStanding(player.x, player.y)) {
+    if (shouldAutoCheckpoint(true, isSafeStanding(player.x, player.y))) {
       setCheckpoint(player.x, player.y);
     }
     // Collapse platforms underfoot
@@ -479,12 +481,14 @@ export function updatePlayer(dt) {
   else if (Math.abs(player.vx) > 20) player.anim = "run";
   else player.anim = "idle";
 
-  const speeds = { idle: 0.18, run: 0.08, jump: 0.12, fall: 0.12, cling: 0.16 };
-  player.frameTimer += dt;
-  if (player.frameTimer > (speeds[player.anim] || 0.12)) {
-    player.frameTimer = 0;
-    player.frame = (player.frame + 1) % 4;
-  }
+  const stepped = stepPlayerAnimFrame(
+    player.frameTimer,
+    player.frame,
+    player.anim,
+    dt
+  );
+  player.frameTimer = stepped.frameTimer;
+  player.frame = stepped.frame;
 
   if (player.invuln > 0) player.invuln = tickInvuln(player.invuln, dt);
   pushReplaySample();

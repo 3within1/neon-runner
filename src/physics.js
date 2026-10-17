@@ -1,4 +1,19 @@
-import { WALL_JUMP_VX, WALL_JUMP_VY, WALL_SLIDE_SPEED } from "./constants.js";
+import {
+  GRAVITY,
+  MAX_FALL,
+  WALL_JUMP_VX,
+  WALL_JUMP_VY,
+  WALL_SLIDE_SPEED,
+} from "./constants.js";
+
+/** Frame periods (seconds) for runner sprite sheet cycling. */
+export const PLAYER_ANIM_PERIODS = {
+  idle: 0.18,
+  run: 0.08,
+  jump: 0.12,
+  fall: 0.12,
+  cling: 0.16,
+};
 
 export function rect(x, y, w, h) {
   return { x, y, w, h };
@@ -135,4 +150,53 @@ export function resolveAxis(entity, platforms, axis, prev) {
       }
     }
   }
+}
+
+/**
+ * Mid-run auto-checkpoint only while grounded on a safe pad.
+ * Airborne or hazard/enemy/collapse footing must not move the respawn.
+ * @param {boolean} onGround
+ * @param {boolean} isSafe
+ */
+export function shouldAutoCheckpoint(onGround, isSafe) {
+  return !!(onGround && isSafe);
+}
+
+/**
+ * Gravity + wall-slide cap while not dashing. Active dash skips fall integration
+ * (dash path forces vy separately).
+ * @param {number} vy
+ * @param {number} dt
+ * @param {{ dashTimer: number, wallCling: number, wallDir: number }} opts
+ */
+export function nextFallVelocity(vy, dt, { dashTimer, wallCling, wallDir }) {
+  if (dashTimer > 0) return vy;
+  const fallen = Math.min(MAX_FALL, vy + GRAVITY * dt);
+  return capWallSlideFall(fallen, wallCling, wallDir);
+}
+
+/**
+ * Advance the 4-frame runner cycle when the pose period elapses.
+ * @param {number} frameTimer
+ * @param {number} frame
+ * @param {string} anim
+ * @param {number} dt
+ * @param {Record<string, number>} [periods]
+ * @returns {{ frameTimer: number, frame: number }}
+ */
+export function stepPlayerAnimFrame(
+  frameTimer,
+  frame,
+  anim,
+  dt,
+  periods = PLAYER_ANIM_PERIODS
+) {
+  let nextTimer = frameTimer + dt;
+  let nextFrame = frame;
+  const period = periods[anim] || 0.12;
+  if (nextTimer > period) {
+    nextTimer = 0;
+    nextFrame = (frame + 1) % 4;
+  }
+  return { frameTimer: nextTimer, frame: nextFrame };
 }
