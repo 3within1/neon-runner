@@ -47,6 +47,7 @@ import {
   resolveAxis,
   segmentHitsRect,
   shouldApplyRunClamp,
+  shouldPlayLandSfx,
   wallClingDir,
   wallJumpVelocity,
 } from "./physics.js";
@@ -454,7 +455,15 @@ export function updatePlayer(dt) {
   }
 
   if (player.onGround) {
-    if (!wasGrounded && falling && !player.suppressLand) sfx.land();
+    if (
+      shouldPlayLandSfx({
+        wasGrounded,
+        falling,
+        suppressLand: player.suppressLand,
+      })
+    ) {
+      sfx.land();
+    }
     player.suppressLand = false;
     player.jumpCutExempt = false;
     if (isSafeStanding(player.x, player.y)) {

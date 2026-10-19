@@ -9,7 +9,7 @@ import {
   STOMP_SLACK,
   TILE,
 } from "./constants.js";
-import { rect } from "./physics.js";
+import { clampPatrolToPlatform, platformUnderFeet, rect } from "./physics.js";
 import { enemySpeedMult, level, levelIndex, runMode } from "./state.js";
 
 /**
@@ -853,15 +853,7 @@ function spawnEnemy(tx, ty, minA, maxA, typeName = "drone") {
 
 /** Platform currently supporting an enemy's feet, if any. */
 function platformUnderEnemy(e, atX = e.x + e.w * 0.5) {
-  const feetY = e.y + e.h;
-  let best = null;
-  for (const p of level.platforms) {
-    if (p.fallen) continue;
-    if (atX < p.x || atX > p.x + p.w) continue;
-    if (Math.abs(p.y - feetY) > 4) continue;
-    if (!best || p.w > best.w) best = p;
-  }
-  return best;
+  return platformUnderFeet(level.platforms, e, atX);
 }
 
 /** Place grounded enemies so their feet sit on the nearest platform top below. */
@@ -880,17 +872,7 @@ function snapEnemyToGround(e) {
     e.maxY = e.y + e.h;
   }
   // Keep patrol bounds on the supporting platform so grounded foes never walk into air.
-  const plat = platformUnderEnemy(e);
-  if (plat) {
-    const pad = 2;
-    e.minX = Math.max(e.minX, plat.x + pad);
-    e.maxX = Math.min(e.maxX, plat.x + plat.w - pad);
-    if (e.maxX - e.minX < e.w) {
-      e.minX = plat.x + pad;
-      e.maxX = plat.x + plat.w - pad;
-    }
-    e.x = Math.max(e.minX, Math.min(e.maxX - e.w, e.x));
-  }
+  clampPatrolToPlatform(e, platformUnderEnemy(e));
 }
 
 /** Assert every grounded enemy can stand across its full X patrol. */
