@@ -46,7 +46,9 @@ import {
   integrateRunVelocity,
   resolveAxis,
   segmentHitsRect,
+  cameraTargetFromPlayer,
   shouldApplyRunClamp,
+  stepCameraPosition,
   wallClingDir,
   wallJumpVelocity,
 } from "./physics.js";
@@ -71,9 +73,11 @@ import {
   pushReplaySample,
   reduceMotion,
   practiceMode,
+  resolveRunStartSector,
   abilitiesForSector,
   comboBonusForStomp,
   nextComboOnStomp,
+  playerCanBeHit,
   resetRunStats,
   resetSectorElapsed,
   runElapsed,
@@ -216,15 +220,13 @@ export function resetRun(full = false, opts = {}) {
     setPracticeMode(practice);
     const mode = practice ? "normal" : opts.mode || "normal";
     const last = getLevelCount() - 1;
-    let sector = 0;
-    if (practice) {
-      sector = Math.max(0, last);
-    } else if (mode === "timeAttack") {
-      sector = Math.max(0, Math.min(last, opts.sector ?? 0));
-    } else {
-      const unlocked = Math.min(last, getUnlockedSector());
-      sector = Math.max(0, Math.min(unlocked, opts.sector ?? 0));
-    }
+    const sector = resolveRunStartSector({
+      practice,
+      mode,
+      requestedSector: opts.sector ?? 0,
+      unlockedSector: getUnlockedSector(),
+      lastIndex: last,
+    });
     configureRunMode(mode, sector);
     setLevelIndex(sector);
     setScore(0);
@@ -285,8 +287,7 @@ function finishDeathPresentation() {
 }
 
 export function hitPlayer(force = false) {
-  if (state !== "playing") return false;
-  if (!force && player.invuln > 0) return false;
+  if (!playerCanBeHit({ playing: state === "playing", invuln: player.invuln, force })) return false;
 
   const nextLives = lives - 1;
   setLives(Math.max(0, nextLives));
@@ -921,12 +922,10 @@ export function updateExit() {
 }
 
 export function updateCamera(dt) {
-  const targetX = player.x + player.w / 2 - W * 0.38;
-  const targetY = player.y + player.h / 2 - H * 0.55;
-  camera.x += (targetX - camera.x) * Math.min(1, dt * 6);
-  camera.y += (targetY - camera.y) * Math.min(1, dt * 4);
-  camera.x = Math.max(0, Math.min(level.width - W, camera.x));
-  camera.y = Math.max(0, Math.min(level.height - H, camera.y));
+  const target = cameraTargetFromPlayer(player, W, H);
+  const next = stepCameraPosition(camera, target, dt, level.width, level.height, W, H);
+  camera.x = next.x;
+  camera.y = next.y;
 
   if (shake > 0 && !reduceMotion) {
     decayShake(dt);

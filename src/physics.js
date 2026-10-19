@@ -136,3 +136,31 @@ export function resolveAxis(entity, platforms, axis, prev) {
     }
   }
 }
+
+/** Ideal camera top-left so the player sits at ~38% width / 55% height of the viewport. */
+export function cameraTargetFromPlayer(box, viewportW, viewportH) {
+  return {
+    x: box.x + box.w / 2 - viewportW * 0.38,
+    y: box.y + box.h / 2 - viewportH * 0.55,
+  };
+}
+
+/**
+ * Exponential smooth toward target, then clamp to level bounds.
+ * @returns {{ x: number, y: number }}
+ */
+export function stepCameraPosition(
+  cam,
+  target,
+  dt,
+  levelW,
+  levelH,
+  viewportW,
+  viewportH
+) {
+  let x = cam.x + (target.x - cam.x) * Math.min(1, dt * 6);
+  let y = cam.y + (target.y - cam.y) * Math.min(1, dt * 4);
+  x = Math.max(0, Math.min(levelW - viewportW, x));
+  y = Math.max(0, Math.min(levelH - viewportH, y));
+  return { x, y };
+}

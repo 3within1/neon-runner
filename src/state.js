@@ -368,6 +368,41 @@ export function tickCrack(dt) {
 }
 
 /**
+ * Sector index chosen when starting a full run (practice / time attack / campaign).
+ * @param {{
+ *   practice: boolean,
+ *   mode: 'normal' | 'lockdown' | 'timeAttack',
+ *   requestedSector?: number,
+ *   unlockedSector: number,
+ *   lastIndex: number
+ * }} opts
+ */
+export function resolveRunStartSector({
+  practice,
+  mode,
+  requestedSector = 0,
+  unlockedSector,
+  lastIndex,
+}) {
+  if (practice) return Math.max(0, lastIndex);
+  if (mode === "timeAttack") {
+    return Math.max(0, Math.min(lastIndex, requestedSector));
+  }
+  const unlocked = Math.min(lastIndex, unlockedSector);
+  return Math.max(0, Math.min(unlocked, requestedSector));
+}
+
+/**
+ * Early-out gate for hitPlayer (no side effects).
+ * @param {{ playing: boolean, invuln: number, force?: boolean }} opts
+ */
+export function playerCanBeHit({ playing, invuln, force = false }) {
+  if (!playing) return false;
+  if (!force && invuln > 0) return false;
+  return true;
+}
+
+/**
  * @param {RunMode} mode
  * @param {number} [sector]
  */
