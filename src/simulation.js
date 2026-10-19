@@ -42,9 +42,12 @@ import {
 } from "./level.js";
 import {
   aabb,
+  canStartDash,
   capWallSlideFall,
+  dashInvulnBoost,
   integrateRunVelocity,
   resolveAxis,
+  resolveDashDir,
   segmentHitsRect,
   shouldApplyRunClamp,
   wallClingDir,
@@ -58,6 +61,7 @@ import {
   addScore,
   beginReplayPlayback,
   camera,
+  canAdvanceLevel,
   checkpoint,
   clearReplay,
   combo,
@@ -76,6 +80,7 @@ import {
   nextComboOnStomp,
   resetRunStats,
   resetSectorElapsed,
+  resolveSectorClearKind,
   runElapsed,
   runMode,
   score,
@@ -249,7 +254,7 @@ export function resetRun(full = false, opts = {}) {
 }
 
 export function advanceLevel() {
-  if (runMode === "timeAttack") return false;
+  if (!canAdvanceLevel(runMode)) return false;
   const next = levelIndex + 1;
   if (next >= getLevelCount()) return false;
   setLevelIndex(next);
@@ -324,18 +329,23 @@ export function hitPlayer(force = false) {
 }
 
 function tryDash() {
-  if (!player.canDash) return;
-  if (player.dashCd > 0 || player.dashTimer > 0) return;
-  if (!input.dashPressed) return;
+  if (
+    !canStartDash({
+      canDash: player.canDash,
+      dashCd: player.dashCd,
+      dashTimer: player.dashTimer,
+      dashPressed: input.dashPressed,
+    })
+  ) {
+    return;
+  }
   input.dashPressed = false;
-  const dir =
-    input.left && !input.right ? -1 : input.right && !input.left ? 1 : player.facing;
-  player.dashDir = dir || 1;
+  player.dashDir = resolveDashDir(input.left, input.right, player.facing);
   player.dashTimer = DASH_DURATION;
   player.dashCd = DASH_COOLDOWN;
   player.vx = player.dashDir * DASH_SPEED;
   player.vy = Math.min(player.vy, 0);
-  player.invuln = Math.max(player.invuln, DASH_DURATION * 0.85);
+  player.invuln = dashInvulnBoost(player.invuln, DASH_DURATION);
   player.facing = player.dashDir;
   player.wallDir = 0;
   player.wallCling = 0;
@@ -839,7 +849,14 @@ function formatClock(s) {
 }
 
 function completeSectorOrRun() {
-  if (practiceMode) {
+  const kind = resolveSectorClearKind({
+    practiceMode,
+    runMode,
+    levelIndex,
+    levelCount: getLevelCount(),
+  });
+
+  if (kind === "practice") {
     setState("won");
     stopMusic();
     sfx.win();
@@ -854,7 +871,7 @@ function completeSectorOrRun() {
   }
 
   const { improved, best } = recordSectorTime(levelIndex, sectorElapsed);
-  if (runMode === "timeAttack") {
+  if (kind === "timeAttack") {
     setState("won");
     stopMusic();
     sfx.win();
@@ -866,7 +883,7 @@ function completeSectorOrRun() {
     return;
   }
 
-  if (levelIndex < getLevelCount() - 1) {
+  if (kind === "continue") {
     unlockSector(levelIndex + 1);
     const next = getLevelDef(levelIndex + 1);
     setState("cleared");

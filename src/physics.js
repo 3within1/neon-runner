@@ -136,3 +136,34 @@ export function resolveAxis(entity, platforms, axis, prev) {
     }
   }
 }
+
+/**
+ * Horizontal dash direction from held axes, falling back to facing.
+ * Opposite holds cancel to facing; a zero/falsy facing falls back to +1.
+ * @param {boolean} left
+ * @param {boolean} right
+ * @param {number} facing
+ * @returns {-1 | 1}
+ */
+export function resolveDashDir(left, right, facing) {
+  if (left && !right) return -1;
+  if (right && !left) return 1;
+  return /** @type {-1 | 1} */ (facing || 1);
+}
+
+/**
+ * Gate for beginning a dash (ability unlocked, timers clear, press latched).
+ * @param {{ canDash: boolean, dashCd: number, dashTimer: number, dashPressed: boolean }} opts
+ */
+export function canStartDash({ canDash, dashCd, dashTimer, dashPressed }) {
+  return !!canDash && dashCd <= 0 && dashTimer <= 0 && !!dashPressed;
+}
+
+/**
+ * Brief i-frames granted at dash start (fraction of dash duration).
+ * @param {number} invuln
+ * @param {number} dashDuration
+ */
+export function dashInvulnBoost(invuln, dashDuration) {
+  return Math.max(invuln, dashDuration * 0.85);
+}
