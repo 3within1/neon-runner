@@ -9,7 +9,7 @@ import {
   STOMP_SLACK,
   TILE,
 } from "./constants.js";
-import { rect } from "./physics.js";
+import { aabb, rect } from "./physics.js";
 import { enemySpeedMult, level, levelIndex, runMode } from "./state.js";
 
 /**
@@ -1158,6 +1158,29 @@ export function floorYUnderEntity(platforms, e, atX) {
   return best;
 }
 
+export function hasFloorSupportAt(platforms, e, atX) {
+  return floorYUnderEntity(platforms, e, atX) !== null;
+}
+
+/**
+ * Horizontal slide during aerial slam: move toward player only if landing column has floor.
+ * Does not mutate `e`.
+ */
+export function resolveBossAirborneSlideX(e, dx, chaseSpeed, dt, platforms) {
+  const nextX = e.x + Math.sign(dx) * chaseSpeed * 0.55 * dt;
+  const clampedX = Math.max(e.minX, Math.min(e.maxX - e.w, nextX));
+  if (hasFloorSupportAt(platforms, { ...e, x: clampedX }, clampedX + e.w * 0.5)) {
+    return clampedX;
+  }
+  return Math.max(e.minX, Math.min(e.maxX - e.w, e.x));
+}
+
+/** Ground Y for slam landing: platform top under boss mid-X, else arena fallback. */
+export function resolveBossAirborneGroundY(platforms, e) {
+  const floorY = floorYUnderEntity(platforms, e, e.x + e.w * 0.5);
+  return floorY != null ? floorY : e.minY + e.h;
+}
+
 /** Advance a bolt one frame (life + position). Does not mutate `p`. */
 export function advanceProjectile(p, dt) {
   return {
@@ -1188,4 +1211,42 @@ export function projectileCanHurtPlayer(invuln) {
  */
 export function electricHazardPulse(nowSec, beatSec) {
   return 0.5 + 0.5 * Math.sin((nowSec * Math.PI * 2) / beatSec);
+}
+
+/**
+ * @returns {{ spawn: { x: number, y: number }, invulnBoost: number } | null}
+ */
+export function checkpointTouchResult(player, pad, playerH) {
+  if (pad.activated) return null;
+  if (!aabb(player, pad)) return null;
+  return {
+    spawn: { x: pad.x + 8, y: pad.y - playerH },
+    invulnBoost: 0.45,
+  };
+}
+
+/**
+ * Safe to auto-checkpoint while standing.
+ */
+export function isSafeStandingAt(feet, onGround, hazards, enemies, platforms) {
+  for (const h of hazards) {
+    if (h.kind === "laser" && !h.on) continue;
+    if (aabb(feet, h)) return false;
+  }
+  for (const e of enemies) {
+    if (!e.alive) continue;
+    if (aabb(feet, enemyBody(e))) return false;
+  }
+  for (const p of platforms) {
+    if (p.kind !== "collapse" || p.fallen) continue;
+    if (
+      onGround &&
+      feet.x + feet.w > p.x &&
+      feet.x < p.x + p.w &&
+      Math.abs(feet.y + feet.h - p.y) < 3
+    ) {
+      return false;
+    }
+  }
+  return true;
 }
