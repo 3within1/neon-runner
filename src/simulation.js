@@ -6,13 +6,11 @@ import {
   DOUBLE_JUMP_VELOCITY,
   GRAVITY,
   INVULN_HIT,
-  INVULN_STOMP,
   JUMP_CUT_FACTOR,
   JUMP_CUT_THRESHOLD,
   JUMP_VELOCITY,
   MAX_FALL,
   SCORE_PACK,
-  STOMP_BOUNCE,
   TILE,
 } from "./constants.js";
 import { W, H } from "./dom.js";
@@ -42,9 +40,13 @@ import {
 } from "./level.js";
 import {
   aabb,
+  canWallJump,
   capWallSlideFall,
   integrateRunVelocity,
+  isFallenIntoPit,
   resolveAxis,
+  resolveStompEnemyHit,
+  resolveStompPlayerImpulse,
   segmentHitsRect,
   shouldApplyRunClamp,
   wallClingDir,
@@ -267,10 +269,6 @@ export function advanceLevel() {
   return true;
 }
 
-function pitY() {
-  return level.height + 80;
-}
-
 function finishDeathPresentation() {
   if (!pendingEnd) return;
   const end = pendingEnd;
@@ -355,7 +353,15 @@ function detectWallCling(dt) {
 }
 
 function tryWallJump() {
-  if (player.wallCling <= 0 || player.wallDir === 0 || player.onGround) return false;
+  if (
+    !canWallJump({
+      wallCling: player.wallCling,
+      wallDir: player.wallDir,
+      onGround: player.onGround,
+    })
+  ) {
+    return false;
+  }
   const impulse = wallJumpVelocity(player.wallDir);
   player.vy = impulse.vy;
   player.vx = impulse.vx;
@@ -448,7 +454,7 @@ export function updatePlayer(dt) {
   resolveAxis(player, platforms, "y", player.prevY);
   detectWallCling(dt);
 
-  if (player.y > pitY()) {
+  if (isFallenIntoPit(player.y, level.height)) {
     hitPlayer(true);
     return;
   }
@@ -724,13 +730,15 @@ export function updateEnemies(dt) {
     );
 
     if (stomping) {
-      player.vy = STOMP_BOUNCE;
-      player.jumpCutExempt = true;
-      player.invuln = Math.max(player.invuln, INVULN_STOMP);
-      e.hp -= 1;
-      e.charging = 0;
-      e.airborne = false;
-      if (e.boss) e.chargeCd = Math.min(e.chargeCd, 0.35);
+      const impulse = resolveStompPlayerImpulse(player.invuln);
+      player.vy = impulse.vy;
+      player.jumpCutExempt = impulse.jumpCutExempt;
+      player.invuln = impulse.invuln;
+      const hit = resolveStompEnemyHit(e);
+      e.hp = hit.hp;
+      e.charging = hit.charging;
+      e.airborne = hit.airborne;
+      e.chargeCd = hit.chargeCd;
       registerStomp(e);
 
       if (e.hp <= 0) {

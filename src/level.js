@@ -9,7 +9,7 @@ import {
   STOMP_SLACK,
   TILE,
 } from "./constants.js";
-import { rect } from "./physics.js";
+import { rect, snapFeetToNearestPlatform } from "./physics.js";
 import { enemySpeedMult, level, levelIndex, runMode } from "./state.js";
 
 /**
@@ -866,19 +866,7 @@ function platformUnderEnemy(e, atX = e.x + e.w * 0.5) {
 
 /** Place grounded enemies so their feet sit on the nearest platform top below. */
 function snapEnemyToGround(e) {
-  const midX = e.x + e.w * 0.5;
-  let bestTop = null;
-  for (const p of level.platforms) {
-    if (p.fallen) continue;
-    if (midX < p.x || midX > p.x + p.w) continue;
-    if (p.y < e.y - TILE) continue;
-    if (bestTop === null || p.y < bestTop) bestTop = p.y;
-  }
-  if (bestTop !== null) {
-    e.y = bestTop - e.h;
-    e.minY = e.y;
-    e.maxY = e.y + e.h;
-  }
+  snapFeetToNearestPlatform(level.platforms, e);
   // Keep patrol bounds on the supporting platform so grounded foes never walk into air.
   const plat = platformUnderEnemy(e);
   if (plat) {
