@@ -136,3 +136,44 @@ export function resolveAxis(entity, platforms, axis, prev) {
     }
   }
 }
+
+/**
+ * Axis-aligned hit box for a circular DATA pack (coin) centered at (x, y).
+ * @param {{ x: number, y: number, r: number }} coin
+ */
+export function coinHitBox(coin) {
+  return {
+    x: coin.x - coin.r,
+    y: coin.y - coin.r,
+    w: coin.r * 2,
+    h: coin.r * 2,
+  };
+}
+
+/**
+ * True when an untaken pack overlaps the player AABB.
+ * @param {{ x: number, y: number, w: number, h: number }} playerBox
+ * @param {{ x: number, y: number, r: number, taken?: boolean }} coin
+ */
+export function shouldCollectCoin(playerBox, coin) {
+  return !coin.taken && aabb(playerBox, coinHitBox(coin));
+}
+
+/**
+ * Combat/respawn hazards: lasers only hurt while duty-cycled on; other kinds always.
+ * @param {{ kind?: string, on?: boolean }} h
+ */
+export function hazardCanHurtPlayer(h) {
+  if (h.kind === "laser" && !h.on) return false;
+  return true;
+}
+
+/**
+ * Grounded frames refill air jumps to the sector max; airborne keeps the current count.
+ * @param {boolean} onGround
+ * @param {number} maxAirJumps
+ * @param {number} airJumps
+ */
+export function refillAirJumps(onGround, maxAirJumps, airJumps) {
+  return onGround ? maxAirJumps : airJumps;
+}

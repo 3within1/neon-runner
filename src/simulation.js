@@ -43,10 +43,13 @@ import {
 import {
   aabb,
   capWallSlideFall,
+  hazardCanHurtPlayer,
   integrateRunVelocity,
+  refillAirJumps,
   resolveAxis,
   segmentHitsRect,
   shouldApplyRunClamp,
+  shouldCollectCoin,
   wallClingDir,
   wallJumpVelocity,
 } from "./physics.js";
@@ -161,7 +164,7 @@ function syncAbilities() {
 function isSafeStanding(px, py) {
   const feet = { x: px, y: py, w: player.w, h: player.h };
   for (const h of level.hazards) {
-    if (h.kind === "laser" && !h.on) continue;
+    if (!hazardCanHurtPlayer(h)) continue;
     if (aabb(feet, h)) return false;
   }
   for (const e of level.enemies) {
@@ -399,7 +402,7 @@ export function updatePlayer(dt) {
 
   const wasGrounded = player.onGround;
 
-  if (player.onGround) player.airJumps = player.maxAirJumps;
+  player.airJumps = refillAirJumps(player.onGround, player.maxAirJumps, player.airJumps);
   player.coyote = tickCoyote(player.coyote, player.onGround, dt);
   player.jumpBuffer = tickJumpBuffer(player.jumpBuffer, input.jumpPressed, dt);
   input.jumpPressed = false;
@@ -764,13 +767,7 @@ export function updateCoins(dt) {
   for (const c of level.coins) {
     if (c.taken) continue;
     c.phase += dt * 4;
-    const box = {
-      x: c.x - c.r,
-      y: c.y - c.r,
-      w: c.r * 2,
-      h: c.r * 2,
-    };
-    if (aabb(player, box)) {
+    if (shouldCollectCoin(player, c)) {
       c.taken = true;
       awardScore(SCORE_PACK);
       addRunCoin(1);
@@ -793,7 +790,7 @@ export function updateHazards(dt) {
       h.pulse = electricHazardPulse(performance.now() / 1000, beat);
     }
 
-    if (h.kind === "laser" && !h.on) continue;
+    if (!hazardCanHurtPlayer(h)) continue;
 
     if (
       segmentHitsRect(
