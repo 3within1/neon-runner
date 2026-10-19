@@ -101,6 +101,43 @@ export function capWallSlideFall(vy, wallCling, wallDir) {
   return vy;
 }
 
+/**
+ * Wall-cling detection is only live while the ability is unlocked, the runner
+ * is airborne, and not mid-dash (dash clears cling).
+ */
+export function canDetectWallCling({ canWallCling, onGround, dashTimer }) {
+  return !!(canWallCling && !onGround && dashTimer <= 0);
+}
+
+/**
+ * Pose for the sprite sheet from mobility state.
+ * Priority: dash → wall cling → airborne jump/fall → grounded run/idle.
+ */
+export function resolvePlayerAnim({ dashTimer, wallCling, wallDir, onGround, vy, vx }) {
+  if (dashTimer > 0) return "run";
+  if (wallCling > 0 && wallDir !== 0 && !onGround) return "cling";
+  if (!onGround) return vy < 0 ? "jump" : "fall";
+  if (Math.abs(vx) > 20) return "run";
+  return "idle";
+}
+
+/**
+ * Camera-shake + hit-stop juice after a stomp (kill vs chip; boss / armored / normal).
+ * @param {{ boss?: boolean, armored?: boolean, killed: boolean }} opts
+ */
+export function resolveStompImpact({ boss = false, armored = false, killed }) {
+  if (killed) {
+    return {
+      shake: boss ? 0.45 : 0.15,
+      hitStop: boss ? 0.14 : armored ? 0.1 : 0.05,
+    };
+  }
+  return {
+    shake: boss ? 0.16 : 0.08,
+    hitStop: boss ? 0.1 : armored ? 0.08 : 0.04,
+  };
+}
+
 export function resolveAxis(entity, platforms, axis, prev) {
   for (const p of platforms) {
     if (!aabb(entity, p)) continue;
