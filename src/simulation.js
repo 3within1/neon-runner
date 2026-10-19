@@ -7,21 +7,21 @@ import {
   GRAVITY,
   INVULN_HIT,
   INVULN_STOMP,
-  JUMP_CUT_FACTOR,
-  JUMP_CUT_THRESHOLD,
   JUMP_VELOCITY,
   MAX_FALL,
   SCORE_PACK,
   STOMP_BOUNCE,
-  TILE,
 } from "./constants.js";
 import { W, H } from "./dom.js";
 import { input } from "./input.js";
 import {
   armCollapsePlatform,
   advanceProjectile,
+  bossChaseTunables,
   bossPhaseFromHp,
+  bossPlayerInArena,
   buildLevel,
+  constrainGroundedEnemy,
   electricHazardPulse,
   enemyBody,
   floorYUnderEntity,
@@ -35,6 +35,10 @@ import {
   minibossPhaseFromHp,
   projectileCanHurtPlayer,
   projectileExpired,
+  pushBackFromLockedExit,
+  resolveBossArenaBounds,
+  shouldBossStartCharge,
+  shouldBossStartSlam,
   solidPlatforms,
   stepPatrol1D,
   tickCollapsePlatform,
@@ -42,6 +46,7 @@ import {
 } from "./level.js";
 import {
   aabb,
+  applyJumpCut,
   capWallSlideFall,
   integrateRunVelocity,
   resolveAxis,
@@ -424,9 +429,7 @@ export function updatePlayer(dt) {
   }
 
   if (input.jumpReleased) {
-    if (!player.jumpCutExempt && player.vy < JUMP_CUT_THRESHOLD) {
-      player.vy *= JUMP_CUT_FACTOR;
-    }
+    player.vy = applyJumpCut(player.vy, player.jumpCutExempt);
     input.jumpReleased = false;
   }
 
@@ -507,21 +510,8 @@ function hasFloorSupport(e, atX) {
  * Keep grounded enemies from walking off platform lips.
  * Returns true if horizontal velocity was reversed at an edge.
  */
-function constrainGroundedEnemy(e) {
-  if (!e.grounded || e.airborne) return false;
-  const lead = e.vx < 0 ? e.x + 6 : e.x + e.w - 6;
-  const mid = e.x + e.w * 0.5;
-  if (e.vx !== 0 && !hasFloorSupport(e, lead)) {
-    e.x = Math.max(e.minX, Math.min(e.maxX - e.w, e.x - Math.sign(e.vx) * 4));
-    e.vx = -Math.sign(e.vx || 1) * Math.abs(e.vx || e.baseSpeed || e.speed);
-    e.charging = 0;
-    const floor = floorYUnder(e, e.x + e.w * 0.5);
-    if (floor != null) e.y = floor - e.h;
-    return true;
-  }
-  const floor = floorYUnder(e, mid);
-  if (floor != null) e.y = floor - e.h;
-  return false;
+function constrainEnemyToFloor(e) {
+  return constrainGroundedEnemy(level.platforms, e);
 }
 
 function updateBossChase(e, dt) {
@@ -529,14 +519,12 @@ function updateBossChase(e, dt) {
   const enemyMid = e.x + e.w * 0.5;
   const dx = playerMid - enemyMid;
   const dist = Math.abs(dx);
-  const inArena =
-    player.x + player.w > e.minX - TILE * 4 && player.x < e.maxX + TILE * 4;
+  const inArena = bossPlayerInArena(player.x, player.w, e.minX, e.maxX);
   const phase = e.miniboss ? minibossPhaseFromHp(e.hp) : bossPhase(e);
   const enraged = phase >= 3;
-  const chaseSpeed = e.baseSpeed * (phase === 1 ? 1 : phase === 2 ? 1.2 : 1.4);
-  const chargeMult = enraged ? 3.5 : phase === 2 ? 3.1 : 2.85;
-  const chargeDur = enraged ? 0.9 : 0.7;
-  const chargeCd = enraged ? 0.85 : phase === 2 ? 1.1 : 1.35;
+  const tunables = bossChaseTunables(phase);
+  const chaseSpeed = e.baseSpeed * tunables.chaseMult;
+  const { chargeMult, chargeDur, chargeCd, slamCooldown, slamVy } = tunables;
 
   if (inArena && !e.engaged) {
     e.engaged = true;
@@ -580,25 +568,27 @@ function updateBossChase(e, dt) {
       e.y = ground - e.h;
       e.vy = 0;
       e.airborne = false;
-      e.slamTimer = enraged ? 1.1 : 1.6;
+      e.slamTimer = slamCooldown;
       setShake(0.22);
       sfx.bossCharge();
-      constrainGroundedEnemy(e);
+      constrainEnemyToFloor(e);
     }
     return;
   }
 
   // Miniboss stays grounded on its arena ledge (no mid-air leaps off thin towers).
   if (
-    inArena &&
-    !e.miniboss &&
-    phase >= 2 &&
-    e.slamTimer <= 0 &&
-    e.charging <= 0 &&
-    dist < 360
+    shouldBossStartSlam({
+      inArena,
+      miniboss: e.miniboss,
+      phase,
+      slamTimer: e.slamTimer,
+      charging: e.charging,
+      dist,
+    })
   ) {
     e.airborne = true;
-    e.vy = enraged ? -780 : -620;
+    e.vy = slamVy;
     e.charging = 0;
     return;
   }
@@ -610,7 +600,7 @@ function updateBossChase(e, dt) {
     e.vx = dir * chaseSpeed * chargeMult;
   } else if (inArena && dist > 12) {
     e.vx = Math.sign(dx) * chaseSpeed;
-    if (dist > 40 && dist < 480 && e.chargeCd <= 0) {
+    if (shouldBossStartCharge(dist, e.chargeCd)) {
       e.charging = chargeDur;
       e.chargeCd = chargeCd;
       e.vx = Math.sign(dx) * chaseSpeed * chargeMult;
@@ -621,16 +611,8 @@ function updateBossChase(e, dt) {
   }
 
   e.x += e.vx * dt;
-  if (e.x < e.minX) {
-    e.x = e.minX;
-    e.vx = Math.abs(e.vx);
-    e.charging = 0;
-  } else if (e.x + e.w > e.maxX) {
-    e.x = e.maxX - e.w;
-    e.vx = -Math.abs(e.vx);
-    e.charging = 0;
-  }
-  constrainGroundedEnemy(e);
+  resolveBossArenaBounds(e);
+  constrainEnemyToFloor(e);
 }
 
 function registerStomp(e) {
@@ -704,7 +686,7 @@ export function updateEnemies(dt) {
       const stepped = stepPatrol1D(e.x, e.w, e.vx, e.minX, e.maxX, e.speed, dt);
       e.x = stepped.pos;
       e.vx = stepped.vel;
-      if (e.grounded) constrainGroundedEnemy(e);
+      if (e.grounded) constrainEnemyToFloor(e);
     }
 
     if (e.type === "rex" || e.type === "rexBoss" || e.type === "towerSentinel") {
@@ -912,8 +894,7 @@ export function updateExit() {
       announce(BOSS_STORY.exitLocked);
       sfx.ui();
     }
-    player.x = Math.min(player.x, level.exit.x - player.w - 2);
-    if (player.vx > 0) player.vx = -120;
+    pushBackFromLockedExit(player, level.exit);
     return;
   }
 

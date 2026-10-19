@@ -1,4 +1,10 @@
-import { WALL_JUMP_VX, WALL_JUMP_VY, WALL_SLIDE_SPEED } from "./constants.js";
+import {
+  JUMP_CUT_FACTOR,
+  JUMP_CUT_THRESHOLD,
+  WALL_JUMP_VX,
+  WALL_JUMP_VY,
+  WALL_SLIDE_SPEED,
+} from "./constants.js";
 
 export function rect(x, y, w, h) {
   return { x, y, w, h };
@@ -99,6 +105,18 @@ export function capWallSlideFall(vy, wallCling, wallDir) {
     return Math.min(vy, WALL_SLIDE_SPEED);
   }
   return vy;
+}
+
+/**
+ * Short-hop cut when jump is released mid-ascent.
+ * Stomp / wall-jump frames set jumpCutExempt so bounce height stays intact.
+ * @param {number} vy
+ * @param {boolean} jumpCutExempt
+ */
+export function applyJumpCut(vy, jumpCutExempt) {
+  if (jumpCutExempt) return vy;
+  if (!(vy < JUMP_CUT_THRESHOLD)) return vy;
+  return vy * JUMP_CUT_FACTOR;
 }
 
 export function resolveAxis(entity, platforms, axis, prev) {
