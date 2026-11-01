@@ -21,6 +21,22 @@ test("resolveAxis exits left when already overlapping without clear prev side", 
   assert.ok(entity.x === 22 || entity.x === 70, "pushed fully out of the wall");
 });
 
+test("resolveAxis lands on the upper pad when one fall step overlaps two stacked pads", () => {
+  const high = rect(0, 100, 100, 20);
+  const low = rect(0, 125, 100, 20);
+  for (const order of [
+    [high, low],
+    [low, high],
+  ]) {
+    // Spans y 90..130, overlapping both pads; prev bottom (95) was above both.
+    const entity = { x: 10, y: 90, w: 28, h: 40, vx: 0, vy: 600, onGround: false };
+    resolveAxis(entity, order, "y", 55);
+    assert.equal(entity.y, 60, "rests on top of the upper pad regardless of order");
+    assert.equal(entity.onGround, true);
+    assert.equal(entity.vy, 0);
+  }
+});
+
 test("segmentHitsRect returns false for a zero-length miss beside the target", () => {
   const target = rect(100, 0, 10, 10);
   assert.equal(segmentHitsRect(0, 0, 0, 0, 8, 8, target), false);
