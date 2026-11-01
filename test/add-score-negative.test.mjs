@@ -13,7 +13,7 @@ import {
 } from "../src/state.js";
 
 // Score can only move via addScore in play. A negative delta (refund / bug)
- // must not grant lives or leave nextExtraLifeAt stranded behind score.
+// must not grant lives or leave nextExtraLifeAt stranded behind score.
 
 test("addScore with a negative delta lowers DATA and never grants lives", () => {
   resetRunStats();

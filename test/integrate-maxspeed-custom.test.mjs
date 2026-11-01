@@ -2,8 +2,8 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { integrateRunVelocity } from "../src/physics.js";
 
-// Call sites can pass a tighter maxSpeed (e.g. status effects). The default
- // 280 clamp must not silently win over an explicit lower cap.
+// maxSpeed is an optional override (no call site passes one yet). The default
+// 280 clamp must not silently win over an explicit lower cap.
 
 test("integrateRunVelocity respects a custom maxSpeed below the default", () => {
   const stepped = integrateRunVelocity(0, {

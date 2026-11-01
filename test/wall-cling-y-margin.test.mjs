@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { rect, wallClingDir } from "../src/physics.js";
 
 // Cling requires vertical overlap with a 4px inset on the wall face so toe /
- // head grazes do not latch. Losing that margin makes corner-jumps sticky.
+// head grazes do not latch. Losing that margin makes corner-jumps sticky.
 
 test("wallClingDir ignores holds that only graze the top or bottom of a wall", () => {
   const wall = rect(100, 0, 20, 200);

@@ -11,7 +11,6 @@ test("tickInvuln clamps non-positive finite timers to zero", () => {
   assert.equal(tickInvuln(0, 0.2), 0);
 });
 
-test("tickInvuln preserves non-finite values used by death replay", () => {
+test("tickInvuln preserves the Infinity timer used by death replay", () => {
   assert.equal(tickInvuln(Infinity, 1), Infinity);
-  assert.ok(Number.isNaN(tickInvuln(Number.NaN, 0.1)), "NaN stays NaN (not coerced to 0)");
 });

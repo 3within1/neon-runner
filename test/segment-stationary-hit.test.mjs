@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { rect, segmentHitsRect } from "../src/physics.js";
 
 // Zero-length sweeps still sample the resting AABB (laser/spike already under
- // the player). Missing this path lets standing in a hazard deal no damage.
+// the player). Missing this path lets standing in a hazard deal no damage.
 
 test("segmentHitsRect reports a hit for a zero-length sweep that already overlaps", () => {
   const hazard = rect(40, 40, 20, 20);

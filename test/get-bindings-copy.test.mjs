@@ -4,7 +4,7 @@ import { applyBindings, getBindings, clearInput } from "../src/input.js";
 import { DEFAULT_BINDINGS } from "../src/meta.js";
 
 // Settings UI mutates the object returned by getBindings. A shared reference
- // would corrupt live input mid-frame / mid-rebind.
+// would corrupt live input mid-frame / mid-rebind.
 
 test("getBindings returns a shallow copy, not the live bindings object", () => {
   clearInput();

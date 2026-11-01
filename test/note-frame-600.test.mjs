@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { noteFrameError } from "../src/state.js";
 
 // After the first log, repeats surface every 300 occurrences so a stuck error
- // remains visible without per-frame spam. 600 must also be a "repeat".
+// remains visible without per-frame spam. 600 must also be a "repeat".
 
 test("noteFrameError re-logs on every 300th subsequent occurrence", () => {
   const counts = new Map();
