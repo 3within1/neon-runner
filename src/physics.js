@@ -136,3 +136,42 @@ export function resolveAxis(entity, platforms, axis, prev) {
     }
   }
 }
+
+/**
+ * One-shot gate for the "EXIT LOCKED" line when touching a boss-gated door.
+ * Returns true the first time a living boss is presented; later touches are silent.
+ * @param {{ lockAnnounced?: boolean } | null | undefined} boss
+ */
+export function consumeExitLockAnnounce(boss) {
+  if (!boss || boss.lockAnnounced) return false;
+  boss.lockAnnounced = true;
+  return true;
+}
+
+/**
+ * True when an exit AABB's feet sit on a solid platform top (layout invariant).
+ * @param {{ x: number, y: number, w: number, h: number }} exit
+ * @param {{ x: number, y: number, w: number, h: number, fallen?: boolean }[]} platforms
+ */
+export function isExitStandingOnPlatform(exit, platforms) {
+  const feetY = exit.y + exit.h;
+  return platforms.some(
+    (p) =>
+      !p.fallen &&
+      Math.abs(p.y - feetY) < 0.5 &&
+      exit.x + exit.w > p.x &&
+      exit.x < p.x + p.w
+  );
+}
+
+/**
+ * Walk-cycle advance for Cyber-Rex / Tower Sentinel (faster while charging).
+ * @param {number} walk
+ * @param {number} dt
+ * @param {number} vx
+ * @param {number} charging
+ */
+export function advanceBossWalk(walk, dt, vx, charging) {
+  const chargeBoost = charging > 0 ? 2.2 : 1;
+  return walk + dt * (4.2 + Math.abs(vx) * 0.035) * chargeBoost;
+}

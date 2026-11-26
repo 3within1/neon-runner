@@ -111,3 +111,11 @@ export function formatSectorClearTagline(index, score, next) {
   const beat = getSectorStory(index);
   return `${beat.clear} Next uplink: ${next.name}. DATA ${String(score).padStart(4, "0")}.`;
 }
+
+/**
+ * Defeat banner for the living guardian (Tower Sentinel vs Cyber-Rex).
+ * @param {boolean} miniboss
+ */
+export function bossDefeatAnnounceLine(miniboss) {
+  return miniboss ? BOSS_STORY.sentinelDown : BOSS_STORY.down;
+}
