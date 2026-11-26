@@ -42,7 +42,9 @@ import {
 } from "./level.js";
 import {
   aabb,
+  advanceBossWalk,
   capWallSlideFall,
+  consumeExitLockAnnounce,
   integrateRunVelocity,
   resolveAxis,
   segmentHitsRect,
@@ -103,6 +105,7 @@ import {
 import {
   ABILITY_STORY,
   BOSS_STORY,
+  bossDefeatAnnounceLine,
   formatSectorClearTagline,
   RUN_STORY,
 } from "./story.js";
@@ -708,8 +711,7 @@ export function updateEnemies(dt) {
     }
 
     if (e.type === "rex" || e.type === "rexBoss" || e.type === "towerSentinel") {
-      const chargeBoost = e.charging > 0 ? 2.2 : 1;
-      e.walk += dt * (4.2 + Math.abs(e.vx) * 0.035) * chargeBoost;
+      e.walk = advanceBossWalk(e.walk, dt, e.vx, e.charging);
     }
 
     const body = enemyBody(e);
@@ -743,7 +745,7 @@ export function updateEnemies(dt) {
         sfx.stomp();
         if (e.boss) {
           sfx.bossDefeat();
-          announce(e.miniboss ? BOSS_STORY.sentinelDown : BOSS_STORY.down);
+          announce(bossDefeatAnnounceLine(!!e.miniboss));
         }
       } else {
         e.flash = 0.35;
@@ -907,8 +909,7 @@ export function updateExit() {
 
   if (isExitLocked()) {
     const boss = getLivingBoss();
-    if (boss && !boss.lockAnnounced) {
-      boss.lockAnnounced = true;
+    if (consumeExitLockAnnounce(boss)) {
       announce(BOSS_STORY.exitLocked);
       sfx.ui();
     }
