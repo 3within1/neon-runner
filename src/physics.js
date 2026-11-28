@@ -136,3 +136,62 @@ export function resolveAxis(entity, platforms, axis, prev) {
     }
   }
 }
+
+/**
+ * First-time boss engage when player is in arena.
+ * @param {boolean} inArena
+ * @param {boolean} engaged
+ * @param {boolean} miniboss
+ * @returns {{ engaged: boolean, announceKey: 'online' | 'sentinelOnline' | null }}
+ */
+export function stepBossEngage(inArena, engaged, miniboss) {
+  if (inArena && !engaged) {
+    return {
+      engaged: true,
+      announceKey: miniboss ? "sentinelOnline" : "online",
+    };
+  }
+  return { engaged, announceKey: null };
+}
+
+/**
+ * Phase-announce FSM for Cyber-Rex / Sentinel.
+ * @param {number} phase
+ * @param {boolean} miniboss
+ * @param {number} phaseAnnounced
+ * @returns {{
+ *   phaseAnnounced: number,
+ *   enrageAnnounced: boolean,
+ *   announceKeys: ('armorBreak' | 'overclock')[]
+ * }}
+ */
+export function collectBossPhaseAnnounces(phase, miniboss, phaseAnnounced) {
+  let nextPhaseAnnounced = phaseAnnounced;
+  let enrageAnnounced = false;
+  const announceKeys = [];
+
+  if (phase >= 2 && nextPhaseAnnounced < 2) {
+    nextPhaseAnnounced = 2;
+    if (!miniboss) announceKeys.push("armorBreak");
+  }
+  if (phase >= 3 && nextPhaseAnnounced < 3) {
+    nextPhaseAnnounced = 3;
+    enrageAnnounced = true;
+    announceKeys.push("overclock");
+  }
+
+  return {
+    phaseAnnounced: nextPhaseAnnounced,
+    enrageAnnounced,
+    announceKeys,
+  };
+}
+
+/**
+ * Off-arena idle: resume baseSpeed when nearly stopped.
+ * @param {number} vx
+ * @param {number} baseSpeed
+ */
+export function bossOffArenaPatrolVx(vx, baseSpeed) {
+  return Math.abs(vx) < 1 ? baseSpeed : vx;
+}
